@@ -44,6 +44,7 @@ ifeq ($(GGML_VULKAN),1)
 	TEST_FLAGS += -tags vulkan
 	BUILD_FLAGS += -tags vulkan
 	CMAKE_FLAGS += -DGGML_VULKAN=ON
+	DOCKER_FILE = etc/Dockerfile.vulkan
 endif
 
 # Targets
