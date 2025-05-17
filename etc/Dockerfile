@@ -45,4 +45,3 @@ ENTRYPOINT [ "/entrypoint.sh" ]
 STOPSIGNAL SIGQUIT
 EXPOSE 80 443
 VOLUME [ "/data" ]
-CMD [ "/usr/local/bin/whisper", "server", "--dir", "/data", "--listen", ":80", "--endpoint", "/v1"  ]
