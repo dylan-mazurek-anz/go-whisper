@@ -60,6 +60,7 @@ docker: docker-dep submodule
 		--build-arg OS=${OS} \
 		--build-arg SOURCE=${BUILD_MODULE} \
 		--build-arg VERSION=${VERSION} \
+		--build-arg GGML_CUDA=${GGML_CUDA} \
 		-f etc/Dockerfile .
 
 # Test whisper bindings
@@ -123,7 +124,7 @@ mkdir:
 # go mod tidy
 go-tidy: go-dep
 	@echo Tidy
-	@go mod tidy
+	@${GO} mod tidy
 
 # Clean
 clean: submodule-clean go-tidy
