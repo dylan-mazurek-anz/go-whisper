@@ -72,14 +72,15 @@ There's more information on the API [here](doc/API.md).
 If you are building a docker image, you just need make and docker installed:
 
 * `DOCKER_REGISTRY=docker.io/user make docker` - builds a docker container with the
-  server binary, tagged to a specific registry
+  server binary for CUDA, tagged to a specific registry
+* `OS=linux GGML_CUDA=0 DOCKER_REGISTRY=docker.io/user make docker` - builds a docker container
+  for Linux, with the server binary without CUDA, tagged to a specific registry
 
-If you want to build the server yourself for your specific combination of hardware (for example,
-on MacOS), you can use the `Makefile` in the root directory and have the following dependencies
-met:
+If you want to build the server without docker, you can use the `Makefile` in the root 
+directory and have the following dependencies met:
 
-* Go 1.22
-* C++ compiler
+* Recent version of Go (ie, 1.22+)
+* C++ compiler and cmake
 * FFmpeg 6.1 libraries (see [here](doc/build.md) for more information)
 * For CUDA, you'll need the CUDA toolkit installed including the `nvcc` compiler
 
