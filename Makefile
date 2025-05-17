@@ -55,7 +55,7 @@ all: whisper api
 # Generate the pkg-config files
 generate: mkdir go-tidy libwhisper
 	@echo "Generating pkg-config"
-	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib go generate ./sys/whisper
+	PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib go generate --prefix "$(shell realpath ${PREFIX})/lib" ./sys/whisper
 
 # Make whisper
 whisper: generate libwhisper
