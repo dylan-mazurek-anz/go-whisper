@@ -15,10 +15,9 @@ BUILD_TAG := ${DOCKER_REGISTRY}/go-whisper-${OS}-${ARCH}:${VERSION}
 ROOT_PATH := $(CURDIR)
 BUILD_DIR := build
 
-# This is where libwhisper will be installed
-INSTALL_DIR ?= ${BUILD_DIR}/install
-# convert to absolute path
-INSTALL_DIR := $(realpath ${INSTALL_DIR})
+# This is where libwhisper will be installed, converted to absolute path
+PREFIX ?= ${BUILD_DIR}/install
+PREFIX := $(realpath ${PREFIX})
 
 # Build flags
 BUILD_MODULE := $(shell cat go.mod | head -1 | cut -d ' ' -f 2)
@@ -51,13 +50,13 @@ all: whisper api
 # Generate the pkg-config files
 generate: mkdir go-tidy
 	@echo "Generating pkg-config"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib go generate ./sys/whisper
+	@PKG_CONFIG_PATH=${PREFIX}/lib go generate ./sys/whisper
 
 # Make whisper
 whisper: mkdir generate go-tidy libwhisper
 	@echo "Building whisper"
-	echo "PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
+	echo "PKG_CONFIG_PATH=${PREFIX}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper"
+	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
 
 # Make api
 api: mkdir go-tidy
@@ -78,17 +77,17 @@ docker: docker-dep submodule
 
 # Test whisper bindings
 test: generate libwhisper
-	@echo "Running tests (sys) with ${INSTALL_DIR}/lib"
-	PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
+	@echo "Running tests (sys) with ${PREFIX}/lib"
+	PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
 	@echo "Running tests (pkg)"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./pkg/...
+	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./pkg/...
 	@echo "Running tests (whisper)"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./
+	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./
 
 libwhisper: mkdir submodule cmake-dep 
 	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
 	@${CMAKE} --build ${BUILD_DIR} -j --config Release
-	@${CMAKE} --install ${BUILD_DIR} --prefix ${INSTALL_DIR}
+	@${CMAKE} --install ${BUILD_DIR} --prefix ${PREFIX}
 
 # Push docker container
 docker-push: docker-dep 

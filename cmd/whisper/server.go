@@ -16,10 +16,7 @@ type ServerCmd struct {
 func (cmd *ServerCmd) Run(ctx *Globals) error {
 	// Create a new HTTP server
 	log.Println("Listen address", cmd.Listen)
-	server, err := httpserver.Config{
-		Listen: cmd.Listen,
-		Router: api.RegisterEndpoints(cmd.Endpoint, ctx.service, nil),
-	}.New()
+	server, err := httpserver.New(cmd.Listen, api.RegisterEndpoints(cmd.Endpoint, ctx.service, nil), nil)
 	if err != nil {
 		return err
 	}

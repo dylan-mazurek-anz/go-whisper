@@ -41,28 +41,28 @@ type respDownloadModelStatus struct {
 // PUBLIC METHODS
 
 func ListModels(ctx context.Context, w http.ResponseWriter, service *whisper.Whisper) {
-	httpresponse.JSON(w, respModels{
+	httpresponse.JSON(w, http.StatusOK, 2, respModels{
 		Object: "list",
 		Models: service.ListModels(),
-	}, http.StatusOK, 2)
+	})
 }
 
 func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, service *whisper.Whisper) {
 	// Get query and body
 	var query queryDownloadModel
 	var req reqDownloadModel
-	if err := httprequest.Query(&query, r.URL.Query()); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+	if err := httprequest.Query(r.URL.Query(), &query); err != nil {
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
-	if err := httprequest.Body(&req, r); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+	if err := httprequest.Read(r, &req); err != nil {
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -70,7 +70,7 @@ func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	var stream *httpresponse.TextStream
 	if query.Stream {
 		if stream = httpresponse.NewTextStream(w); stream == nil {
-			httpresponse.Error(w, http.StatusInternalServerError, "Cannot create text stream")
+			httpresponse.Error(w, httpresponse.ErrInternalError, "Cannot create text stream")
 			return
 		}
 		defer stream.Close()
@@ -92,7 +92,7 @@ func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 		if stream != nil {
 			stream.Write("error", err.Error())
 		} else {
-			httpresponse.Error(w, http.StatusBadGateway, err.Error())
+			httpresponse.Error(w, httpresponse.ErrGatewayError, err.Error())
 		}
 		return
 	}
@@ -101,27 +101,27 @@ func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	if query.Stream {
 		stream.Write("ok", model)
 	} else {
-		httpresponse.JSON(w, model, http.StatusCreated, 2)
+		httpresponse.JSON(w, http.StatusCreated, 2, model)
 	}
 }
 
 func GetModelById(ctx context.Context, w http.ResponseWriter, service *whisper.Whisper, id string) {
 	model := service.GetModelById(id)
 	if model == nil {
-		httpresponse.Error(w, http.StatusNotFound)
+		httpresponse.Error(w, httpresponse.ErrNotFound, id)
 		return
 	}
-	httpresponse.JSON(w, model, http.StatusOK, 2)
+	httpresponse.JSON(w, http.StatusOK, 2, model)
 }
 
 func DeleteModelById(ctx context.Context, w http.ResponseWriter, service *whisper.Whisper, id string) {
 	model := service.GetModelById(id)
 	if model == nil {
-		httpresponse.Error(w, http.StatusNotFound)
+		httpresponse.Error(w, httpresponse.ErrNotFound, id)
 		return
 	}
 	if err := service.DeleteModelById(model.Id); err != nil {
-		httpresponse.Error(w, http.StatusInternalServerError, err.Error())
+		httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 		return
 	}
 	httpresponse.Empty(w, http.StatusOK)

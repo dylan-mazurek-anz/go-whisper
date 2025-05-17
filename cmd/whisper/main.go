@@ -4,13 +4,13 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"syscall"
 
 	// Packages
 	kong "github.com/alecthomas/kong"
 	tablewriter "github.com/djthorpe/go-tablewriter"
-	ctx "github.com/mutablelogic/go-server/pkg/context"
 	whisper "github.com/mutablelogic/go-whisper"
 )
 
@@ -90,7 +90,9 @@ func main() {
 	cli.Globals.writer = writer
 
 	// Create a context
-	cli.Globals.ctx = ctx.ContextForSignal(os.Interrupt, syscall.SIGQUIT)
+	var cancel context.CancelFunc
+	cli.Globals.ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGQUIT)
+	defer cancel()
 
 	// Run the command
 	if err := cmd.Run(&cli.Globals); err != nil {

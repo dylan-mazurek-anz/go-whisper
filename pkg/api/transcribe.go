@@ -70,32 +70,32 @@ const (
 func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.ResponseWriter, r *http.Request, t TaskType) {
 	var req reqTranscribe
 	var query queryTranscribe
-	if err := httprequest.Query(&query, r.URL.Query()); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+	if err := httprequest.Query(r.URL.Query(), &query); err != nil {
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
-	if err := httprequest.Body(&req, r); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+	if err := httprequest.Read(r, &req); err != nil {
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
 
 	// Get the model
 	model := service.GetModelById(req.Model)
 	if model == nil {
-		httpresponse.Error(w, http.StatusNotFound, "model not found")
+		httpresponse.Error(w, httpresponse.ErrNotFound, req.Model)
 		return
 	}
 
 	// Open file
 	f, err := req.File.Open()
 	if err != nil {
-		httpresponse.Error(w, http.StatusInternalServerError, err.Error())
+		httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 		return
 	}
 	defer f.Close()
@@ -103,7 +103,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	// Create a segmenter - read segments based on requested segment size
 	segmenter, err := segmenter.NewReader(f, req.SegmentDur(), whisper.SampleRate)
 	if err != nil {
-		httpresponse.Error(w, http.StatusBadRequest, err.Error())
+		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 		return
 	}
 
@@ -111,7 +111,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	var stream *httpresponse.TextStream
 	if query.Stream {
 		if stream = httpresponse.NewTextStream(w); stream == nil {
-			httpresponse.Error(w, http.StatusInternalServerError, "Cannot create text stream")
+			httpresponse.Error(w, httpresponse.ErrInternalError, "Cannot create text stream")
 			return
 		}
 		defer stream.Close()
@@ -204,14 +204,14 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		if stream != nil {
 			stream.Write("error", err.Error())
 		} else {
-			httpresponse.Error(w, http.StatusInternalServerError, err.Error())
+			httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 		}
 		return
 	}
 
 	// Return transcription if not streaming
 	if stream == nil {
-		httpresponse.JSON(w, result, http.StatusOK, 2)
+		httpresponse.JSON(w, http.StatusOK, 2, result)
 	} else {
 		stream.Write("ok")
 	}
