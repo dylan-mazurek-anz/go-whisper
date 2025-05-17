@@ -36,6 +36,7 @@ ifeq ($(GGML_CUDA),1)
 	BUILD_FLAGS += -tags cuda
 	CUDA_DOCKER_ARCH ?= all
 	CMAKE_FLAGS += -DGGML_CUDA=ON
+	BUILD_TAG := "${BUILD_TAG}-cuda"
 	DOCKER_FILE = etc/Dockerfile.cuda
 endif
 
@@ -44,6 +45,7 @@ ifeq ($(GGML_VULKAN),1)
 	TEST_FLAGS += -tags vulkan
 	BUILD_FLAGS += -tags vulkan
 	CMAKE_FLAGS += -DGGML_VULKAN=ON
+	BUILD_TAG := "${BUILD_TAG}-vulkan"
 	DOCKER_FILE = etc/Dockerfile.vulkan
 endif
 
