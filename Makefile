@@ -9,6 +9,7 @@ ARCH ?= $(shell arch | tr A-Z a-z | sed 's/x86_64/amd64/' | sed 's/i386/amd64/' 
 OS ?= $(shell uname | tr A-Z a-z)
 VERSION ?= $(shell git describe --tags --always | sed 's/^v//')
 DOCKER_REGISTRY ?= ghcr.io/mutablelogic
+DOCKER_FILE ?= etc/Dockerfile
 
 # Set docker tag, etc
 BUILD_TAG := ${DOCKER_REGISTRY}/go-whisper-${OS}-${ARCH}:${VERSION}
@@ -35,6 +36,7 @@ ifeq ($(GGML_CUDA),1)
 	BUILD_FLAGS += -tags cuda
 	CUDA_DOCKER_ARCH ?= all
 	CMAKE_FLAGS += -DGGML_CUDA=ON
+	DOCKER_FILE = etc/Dockerfile.cuda
 endif
 
 # If GGML_VULKAN is set, then add a vulkan tag for the go ${BUILD FLAGS}
@@ -73,7 +75,7 @@ docker: docker-dep submodule
 		--build-arg SOURCE=${BUILD_MODULE} \
 		--build-arg VERSION=${VERSION} \
 		--build-arg GGML_CUDA=${GGML_CUDA} \
-		-f etc/Dockerfile .
+		-f ${DOCKER_FILE} .
 
 # Test whisper bindings
 test: generate libwhisper
