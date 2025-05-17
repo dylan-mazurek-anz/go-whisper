@@ -11,7 +11,7 @@ ARG ARCH
 ARG OS
 
 RUN apt-get -y update \
- && apt-get -y install software-properties-common build-essential cmake git curl \
+ && apt-get -y install software-properties-common build-essential cmake git pkg-config curl \
  && add-apt-repository -y ppa:ubuntuhandbook1/ffmpeg6 \
  && apt-get -y update \
  && apt-get -y install libavformat-dev libavcodec-dev libavdevice-dev libavfilter-dev libavutil-dev libswscale-dev libswresample-dev
