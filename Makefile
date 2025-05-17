@@ -18,7 +18,6 @@ BUILD_DIR := build
 
 # This is where libwhisper will be installed, converted to absolute path
 PREFIX ?= ${BUILD_DIR}/install
-PREFIX := $(realpath ${PREFIX})
 
 # Build flags
 BUILD_MODULE := $(shell cat go.mod | head -1 | cut -d ' ' -f 2)
@@ -29,6 +28,7 @@ BUILD_LD_FLAGS += -X $(BUILD_MODULE)/pkg/version.GitHash=$(shell git rev-parse H
 BUILD_LD_FLAGS += -X $(BUILD_MODULE)/pkg/version.GoBuildTime=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 BUILD_FLAGS = -ldflags "-s -w $(BUILD_LD_FLAGS)" 
 TEST_FLAGS = -v
+CMAKE_FLAGS = -DBUILD_SHARED_LIBS=OFF 
 
 # If GGML_CUDA is set, then add a cuda tag for the go ${BUILD FLAGS}
 ifeq ($(GGML_CUDA),1)
@@ -50,15 +50,14 @@ endif
 all: whisper api
 
 # Generate the pkg-config files
-generate: mkdir go-tidy
+generate: mkdir go-tidy libwhisper
 	@echo "Generating pkg-config"
-	@PKG_CONFIG_PATH=${PREFIX}/lib go generate ./sys/whisper
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib go generate ./sys/whisper
 
 # Make whisper
-whisper: mkdir generate go-tidy libwhisper
+whisper: generate libwhisper
 	@echo "Building whisper"
-	echo "PKG_CONFIG_PATH=${PREFIX}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper"
-	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
 
 # Make api
 api: mkdir go-tidy
@@ -80,16 +79,17 @@ docker: docker-dep submodule
 # Test whisper bindings
 test: generate libwhisper
 	@echo "Running tests (sys) with ${PREFIX}/lib"
-	PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
+	PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
 	@echo "Running tests (pkg)"
-	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./pkg/...
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./pkg/...
 	@echo "Running tests (whisper)"
-	@PKG_CONFIG_PATH=${PREFIX}/lib ${GO} test ${TEST_FLAGS} ./
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./
 
 libwhisper: mkdir submodule cmake-dep 
-	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
+	@echo "Making libwhisper with ${CMAKE_FLAGS}"
+	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
 	@${CMAKE} --build ${BUILD_DIR} -j --config Release
-	@${CMAKE} --install ${BUILD_DIR} --prefix ${PREFIX}
+	@${CMAKE} --install ${BUILD_DIR} --prefix $(shell realpath ${PREFIX})
 
 # Push docker container
 docker-push: docker-dep 
@@ -135,6 +135,8 @@ go-dep:
 mkdir:
 	@echo Mkdir ${BUILD_DIR}
 	@install -d ${BUILD_DIR}
+	@echo Mkdir ${PREFIX}
+	@install -d ${PREFIX}
 
 # go mod tidy
 go-tidy: go-dep
