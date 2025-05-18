@@ -88,6 +88,7 @@ test: generate libwhisper
 	@echo "Running tests (whisper)"
 	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./
 
+# make libwhisper and install at ${PREFIX}
 libwhisper: mkdir submodule cmake-dep 
 	@echo "Making libwhisper with ${CMAKE_FLAGS}"
 	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
