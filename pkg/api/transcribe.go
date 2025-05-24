@@ -10,11 +10,11 @@ import (
 	"time"
 
 	// Packages
+	"github.com/mutablelogic/go-media/pkg/segmenter"
 	"github.com/mutablelogic/go-server/pkg/httprequest"
 	"github.com/mutablelogic/go-server/pkg/httpresponse"
 	"github.com/mutablelogic/go-whisper"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
-	"github.com/mutablelogic/go-whisper/pkg/segmenter"
 	"github.com/mutablelogic/go-whisper/pkg/task"
 
 	// Namespace imports
@@ -170,7 +170,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		}
 
 		// Read samples and transcribe them
-		if err := segmenter.Decode(ctx, func(ts time.Duration, buf []float32) error {
+		if err := segmenter.DecodeFloat32(ctx, func(ts time.Duration, buf []float32) error {
 			// Perform the transcription, return any errors
 			return taskctx.Transcribe(ctx, ts, buf, func(segment *schema.Segment) {
 				// Segment callback

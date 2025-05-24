@@ -28,6 +28,7 @@ type Globals struct {
 type CLI struct {
 	Globals
 	Transcribe TranscribeCmd `cmd:"transcribe" help:"Transcribe from file"`
+	Translate  TranslateCmd  `cmd:"translate" help:"Translate to english from file"`
 	Models     ModelsCmd     `cmd:"models" help:"List models"`
 	Download   DownloadCmd   `cmd:"download" help:"Download a model"`
 	Delete     DeleteCmd     `cmd:"delete" help:"Delete a model"`
@@ -59,7 +60,9 @@ func main() {
 	// Create a whisper server - set options
 	opts := []whisper.Opt{
 		whisper.OptLog(func(line string) {
-			log.Println(line)
+			if cli.Globals.Debug {
+				log.Println(line)
+			}
 		}),
 	}
 	if cli.Globals.Debug {

@@ -72,6 +72,18 @@ var (
 func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	params := (FullParams)(C.whisper_full_default_params((C.enum_whisper_sampling_strategy)(strategy)))
 	C.set_callbacks((*C.struct_whisper_full_params)(&params), C.bool(true))
+
+	params.entropy_thold = 2.40
+	params.greedy.best_of = 5
+	params.beam_search.beam_size = 5
+	params.audio_ctx = 0
+	params.split_on_word = C.bool(false)
+	params.entropy_thold = 2.40
+	params.logprob_thold = -1.0
+	params.no_speech_thold = 0.60
+	params.temperature = 0.0
+	params.temperature_inc = 0.2
+
 	return params
 }
 

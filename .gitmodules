@@ -2,3 +2,6 @@
 	path = third_party/whisper.cpp
 	url = https://github.com/ggerganov/whisper.cpp
 
+[submodule "third_party/go-media"]
+	path = third_party/go-media
+	url = https://github.com/mutablelogic/go-media

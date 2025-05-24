@@ -9,8 +9,8 @@ require (
 	github.com/djthorpe/go-errors v1.0.3
 	github.com/djthorpe/go-tablewriter v0.0.11
 	github.com/go-audio/wav v1.1.0
-	github.com/mutablelogic/go-client v1.0.12
-	github.com/mutablelogic/go-media v1.6.12
+	github.com/mutablelogic/go-client v1.1.1
+	github.com/mutablelogic/go-media v1.7.4
 	github.com/mutablelogic/go-server v1.5.14
 	github.com/stretchr/testify v1.10.0
 )
@@ -32,11 +32,11 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/yinyin/go-ldap-schema-parser v0.0.0-20190716182935-542aadd3dcb5 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
-	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/term v0.31.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

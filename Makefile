@@ -61,7 +61,7 @@ generate: mkdir go-tidy libwhisper
 # Make whisper
 whisper: generate libwhisper
 	@echo "Building whisper"
-	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
 
 # Make api
 api: mkdir go-tidy
