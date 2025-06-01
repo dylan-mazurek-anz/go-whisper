@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	// Packages
 	"github.com/djthorpe/go-tablewriter"
 )
 

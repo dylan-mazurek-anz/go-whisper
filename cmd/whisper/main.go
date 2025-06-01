@@ -4,13 +4,13 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"syscall"
 
 	// Packages
 	kong "github.com/alecthomas/kong"
 	tablewriter "github.com/djthorpe/go-tablewriter"
-	ctx "github.com/mutablelogic/go-server/pkg/context"
 	whisper "github.com/mutablelogic/go-whisper"
 )
 
@@ -28,6 +28,7 @@ type Globals struct {
 type CLI struct {
 	Globals
 	Transcribe TranscribeCmd `cmd:"transcribe" help:"Transcribe from file"`
+	Translate  TranslateCmd  `cmd:"translate" help:"Translate to english from file"`
 	Models     ModelsCmd     `cmd:"models" help:"List models"`
 	Download   DownloadCmd   `cmd:"download" help:"Download a model"`
 	Delete     DeleteCmd     `cmd:"delete" help:"Delete a model"`
@@ -59,7 +60,9 @@ func main() {
 	// Create a whisper server - set options
 	opts := []whisper.Opt{
 		whisper.OptLog(func(line string) {
-			log.Println(line)
+			if cli.Globals.Debug {
+				log.Println(line)
+			}
 		}),
 	}
 	if cli.Globals.Debug {
@@ -90,7 +93,9 @@ func main() {
 	cli.Globals.writer = writer
 
 	// Create a context
-	cli.Globals.ctx = ctx.ContextForSignal(os.Interrupt, syscall.SIGQUIT)
+	var cancel context.CancelFunc
+	cli.Globals.ctx, cancel = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGQUIT)
+	defer cancel()
 
 	// Run the command
 	if err := cmd.Run(&cli.Globals); err != nil {

@@ -27,7 +27,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodGet:
 			httpresponse.Empty(w, http.StatusOK)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 
@@ -45,7 +45,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodPost:
 			DownloadModel(r.Context(), w, r, whisper)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 
@@ -63,7 +63,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodDelete:
 			DeleteModelById(r.Context(), w, whisper, id)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 
@@ -77,7 +77,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodPost:
 			TranscribeFile(r.Context(), whisper, w, r, Translate)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 
@@ -91,7 +91,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodPost:
 			TranscribeFile(r.Context(), whisper, w, r, Transcribe)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 
@@ -105,7 +105,7 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		case http.MethodPost:
 			TranscribeFile(r.Context(), whisper, w, r, Diarize)
 		default:
-			httpresponse.Error(w, http.StatusMethodNotAllowed)
+			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
 	})
 

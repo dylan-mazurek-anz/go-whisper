@@ -11,7 +11,7 @@ import (
 	// Packages
 	"github.com/mutablelogic/go-client"
 	"github.com/mutablelogic/go-client/pkg/multipart"
-	"github.com/mutablelogic/go-server/pkg/httprequest"
+	"github.com/mutablelogic/go-server/pkg/types"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
 
@@ -147,7 +147,7 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	}
 
 	// Request->Response
-	if payload, err := client.NewMultipartRequest(request, httprequest.ContentTypeFormData); err != nil {
+	if payload, err := client.NewMultipartRequest(request, types.ContentTypeFormData); err != nil {
 		return nil, err
 	} else if err := c.DoWithContext(ctx, payload, &response, client.OptPath("audio/transcriptions"), client.OptNoTimeout()); err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	}
 
 	// Request->Response
-	if payload, err := client.NewMultipartRequest(request, httprequest.ContentTypeFormData); err != nil {
+	if payload, err := client.NewMultipartRequest(request, types.ContentTypeFormData); err != nil {
 		return nil, err
 	} else if err := c.DoWithContext(ctx, payload, &response, client.OptPath("audio/translations"), client.OptNoTimeout()); err != nil {
 		return nil, err

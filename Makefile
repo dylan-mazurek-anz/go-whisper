@@ -9,16 +9,15 @@ ARCH ?= $(shell arch | tr A-Z a-z | sed 's/x86_64/amd64/' | sed 's/i386/amd64/' 
 OS ?= $(shell uname | tr A-Z a-z)
 VERSION ?= $(shell git describe --tags --always | sed 's/^v//')
 DOCKER_REGISTRY ?= ghcr.io/mutablelogic
+DOCKER_FILE ?= etc/Dockerfile
 
 # Set docker tag, etc
 BUILD_TAG := ${DOCKER_REGISTRY}/go-whisper-${OS}-${ARCH}:${VERSION}
 ROOT_PATH := $(CURDIR)
 BUILD_DIR := build
 
-# This is where libwhisper will be installed
-INSTALL_DIR ?= ${BUILD_DIR}/install
-# convert to absolute path
-INSTALL_DIR := $(realpath ${INSTALL_DIR})
+# This is where libwhisper will be installed, converted to absolute path
+PREFIX ?= ${BUILD_DIR}/install
 
 # Build flags
 BUILD_MODULE := $(shell cat go.mod | head -1 | cut -d ' ' -f 2)
@@ -29,6 +28,7 @@ BUILD_LD_FLAGS += -X $(BUILD_MODULE)/pkg/version.GitHash=$(shell git rev-parse H
 BUILD_LD_FLAGS += -X $(BUILD_MODULE)/pkg/version.GoBuildTime=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 BUILD_FLAGS = -ldflags "-s -w $(BUILD_LD_FLAGS)" 
 TEST_FLAGS = -v
+CMAKE_FLAGS = -DBUILD_SHARED_LIBS=OFF 
 
 # If GGML_CUDA is set, then add a cuda tag for the go ${BUILD FLAGS}
 ifeq ($(GGML_CUDA),1)
@@ -36,6 +36,8 @@ ifeq ($(GGML_CUDA),1)
 	BUILD_FLAGS += -tags cuda
 	CUDA_DOCKER_ARCH ?= all
 	CMAKE_FLAGS += -DGGML_CUDA=ON
+	BUILD_TAG := "${BUILD_TAG}-cuda"
+	DOCKER_FILE = etc/Dockerfile.cuda
 endif
 
 # If GGML_VULKAN is set, then add a vulkan tag for the go ${BUILD FLAGS}
@@ -43,21 +45,23 @@ ifeq ($(GGML_VULKAN),1)
 	TEST_FLAGS += -tags vulkan
 	BUILD_FLAGS += -tags vulkan
 	CMAKE_FLAGS += -DGGML_VULKAN=ON
+	BUILD_TAG := "${BUILD_TAG}-vulkan"
+	DOCKER_FILE = etc/Dockerfile.vulkan
 endif
 
 # Targets
 all: whisper api
 
 # Generate the pkg-config files
-generate: mkdir go-tidy
+generate: mkdir go-tidy libwhisper
 	@echo "Generating pkg-config"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib go generate ./sys/whisper
+	@mkdir -p ${BUILD_DIR}/lib/pkgconfig
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig PREFIX="$(shell realpath ${PREFIX})" go generate ./sys/whisper
 
 # Make whisper
-whisper: mkdir generate go-tidy libwhisper
+whisper: generate libwhisper
 	@echo "Building whisper"
-	echo "PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
 
 # Make api
 api: mkdir go-tidy
@@ -74,21 +78,23 @@ docker: docker-dep submodule
 		--build-arg SOURCE=${BUILD_MODULE} \
 		--build-arg VERSION=${VERSION} \
 		--build-arg GGML_CUDA=${GGML_CUDA} \
-		-f etc/Dockerfile .
+		-f ${DOCKER_FILE} .
 
 # Test whisper bindings
 test: generate libwhisper
-	@echo "Running tests (sys) with ${INSTALL_DIR}/lib"
-	PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
+	@echo "Running tests (sys) with ${PREFIX}/lib"
+	PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./sys/whisper/...
 	@echo "Running tests (pkg)"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./pkg/...
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./pkg/...
 	@echo "Running tests (whisper)"
-	@PKG_CONFIG_PATH=${INSTALL_DIR}/lib ${GO} test ${TEST_FLAGS} ./
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib ${GO} test ${TEST_FLAGS} ./
 
+# make libwhisper and install at ${PREFIX}
 libwhisper: mkdir submodule cmake-dep 
-	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
+	@echo "Making libwhisper with ${CMAKE_FLAGS}"
+	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
 	@${CMAKE} --build ${BUILD_DIR} -j --config Release
-	@${CMAKE} --install ${BUILD_DIR} --prefix ${INSTALL_DIR}
+	@${CMAKE} --install ${BUILD_DIR} --prefix $(shell realpath ${PREFIX})
 
 # Push docker container
 docker-push: docker-dep 
@@ -134,6 +140,8 @@ go-dep:
 mkdir:
 	@echo Mkdir ${BUILD_DIR}
 	@install -d ${BUILD_DIR}
+	@echo Mkdir ${PREFIX}
+	@install -d ${PREFIX}
 
 # go mod tidy
 go-tidy: go-dep
