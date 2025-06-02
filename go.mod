@@ -10,7 +10,7 @@ require (
 	github.com/djthorpe/go-tablewriter v0.0.11
 	github.com/go-audio/wav v1.1.0
 	github.com/mutablelogic/go-client v1.1.1
-	github.com/mutablelogic/go-media v1.7.4
+	github.com/mutablelogic/go-media v1.7.5
 	github.com/mutablelogic/go-server v1.5.14
 	github.com/stretchr/testify v1.10.0
 )
