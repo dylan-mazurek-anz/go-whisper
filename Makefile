@@ -14,9 +14,7 @@ DOCKER_FILE ?= etc/Dockerfile
 # Set docker tag, etc
 BUILD_TAG := ${DOCKER_REGISTRY}/go-whisper-${OS}-${ARCH}:${VERSION}
 ROOT_PATH := $(CURDIR)
-BUILD_DIR := build
-
-# This is where libwhisper will be installed, converted to absolute path
+BUILD_DIR ?= "build"
 PREFIX ?= ${BUILD_DIR}/install
 
 # Build flags
@@ -59,26 +57,14 @@ generate: mkdir go-tidy libwhisper
 	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig PREFIX="$(shell realpath ${PREFIX})" go generate ./sys/whisper
 
 # Make whisper
-whisper: generate libwhisper
+whisper: generate libwhisper libffmpeg
 	@echo "Building whisper"
-	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
+	@PKG_CONFIG_PATH=$(shell realpath ${PREFIX})/lib/pkgconfig CGO_LDFLAGS_ALLOW="-(W|D).*" ${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/whisper ./cmd/whisper
 
 # Make api
 api: mkdir go-tidy
 	@echo "Building api"
 	@${GO} build ${BUILD_FLAGS} -o ${BUILD_DIR}/api ./cmd/api
-
-# Build docker container
-docker: docker-dep submodule
-	@echo build docker image: ${BUILD_TAG} for ${OS}/${ARCH}
-	@${DOCKER} build \
-		--tag ${BUILD_TAG} \
-		--build-arg ARCH=${ARCH} \
-		--build-arg OS=${OS} \
-		--build-arg SOURCE=${BUILD_MODULE} \
-		--build-arg VERSION=${VERSION} \
-		--build-arg GGML_CUDA=${GGML_CUDA} \
-		-f ${DOCKER_FILE} .
 
 # Test whisper bindings
 test: generate libwhisper
@@ -95,6 +81,25 @@ libwhisper: mkdir submodule cmake-dep
 	@${CMAKE} -S third_party/whisper.cpp -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=Release ${CMAKE_FLAGS}
 	@${CMAKE} --build ${BUILD_DIR} -j --config Release
 	@${CMAKE} --install ${BUILD_DIR} --prefix $(shell realpath ${PREFIX})
+
+# make ffmpeg libraries and install at ${PREFIX}
+libffmpeg: mkdir submodule
+	@echo "Making ffmpeg libraries => ${PREFIX}"
+	@mkdir -p ${BUILD_DIR}
+	@mkdir -p ${PREFIX}
+	@BUILD_DIR=$(shell realpath ${BUILD_DIR}) PREFIX=$(shell realpath ${PREFIX}) make -C third_party/go-media ffmpeg
+
+# Build docker container
+docker: docker-dep submodule
+	@echo build docker image: ${BUILD_TAG} for ${OS}/${ARCH}
+	@${DOCKER} build \
+		--tag ${BUILD_TAG} \
+		--build-arg ARCH=${ARCH} \
+		--build-arg OS=${OS} \
+		--build-arg SOURCE=${BUILD_MODULE} \
+		--build-arg VERSION=${VERSION} \
+		--build-arg GGML_CUDA=${GGML_CUDA} \
+		-f ${DOCKER_FILE} .
 
 # Push docker container
 docker-push: docker-dep 
@@ -147,6 +152,7 @@ mkdir:
 go-tidy: go-dep
 	@echo Tidy
 	@${GO} mod tidy
+	@${GO} clean -cache
 
 # Clean
 clean: submodule-clean go-tidy
