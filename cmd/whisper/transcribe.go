@@ -133,7 +133,7 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 	// Create a client for the whisper service
 	opts := []goclient.ClientOpt{}
 	if app.Debug {
-		opts = append(opts, goclient.OptTrace(os.Stderr, true))
+		opts = append(opts, goclient.OptTrace(os.Stderr, false))
 	}
 	if apikey != "" {
 		opts = append(opts, goclient.OptReqToken(goclient.Token{
@@ -156,21 +156,21 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 	// Read samples and transcribe or translate them
 	return segmenter.DecodeInt16(app.ctx, func(ts time.Duration, data []int16) error {
 		// Make a WAV file from the float32 samples
-		wav, err := wav.NewInt16(data, whisper.SampleRate)
+		r, err := wav.NewInt16(data, whisper.SampleRate)
 		if err != nil {
 			return err
 		}
 
 		var segments []*schema.Segment
 		if translate {
-			translation, err := remote.Translate(app.ctx, model, wav, client.OptResponseFormat("verbose_json"))
+			translation, err := remote.Translate(app.ctx, model, r, client.OptResponseFormat("verbose_json"))
 			if err != nil {
 				return err
 			} else {
 				segments = translation.Segments
 			}
 		} else {
-			transcription, err := remote.Transcribe(app.ctx, model, wav, client.OptLanguage(language), client.OptResponseFormat("verbose_json"))
+			transcription, err := remote.Transcribe(app.ctx, model, r, client.OptLanguage(language), client.OptResponseFormat("verbose_json"))
 			if err != nil {
 				return err
 			} else {

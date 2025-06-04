@@ -81,7 +81,7 @@ func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	params.entropy_thold = 2.40
 	params.logprob_thold = -1.0
 	params.no_speech_thold = 0.60
-	params.temperature = 0.0
+	params.temperature = 0.4
 	params.temperature_inc = 0.2
 
 	return params
