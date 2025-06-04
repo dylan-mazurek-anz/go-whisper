@@ -132,6 +132,8 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	name := ""
 	if f, ok := r.(*os.File); ok {
 		name = filepath.Base(f.Name())
+	} else {
+		name = "audio.wav" // Default name if not a file
 	}
 
 	// Create the request
@@ -169,6 +171,8 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	name := ""
 	if f, ok := r.(*os.File); ok {
 		name = filepath.Base(f.Name())
+	} else {
+		name = "audio.wav" // Default name if not a file
 	}
 
 	// Create the request

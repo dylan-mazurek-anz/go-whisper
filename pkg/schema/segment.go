@@ -2,6 +2,11 @@ package schema
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"regexp"
+	"strings"
+	"time"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -24,4 +29,67 @@ func (s *Segment) String() string {
 		return err.Error()
 	}
 	return string(data)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// PRIVATE METHODS
+
+func (seg *Segment) WriteSRT(w io.Writer, offset time.Duration) {
+	fmt.Fprintf(w, "%d\n%s --> %s\n", seg.Id, tsToSrt(time.Duration(seg.Start)+offset), tsToSrt(time.Duration(seg.End)+offset))
+	if seg.SpeakerTurn {
+		fmt.Fprintf(w, "[SPEAKER] ")
+	}
+	fmt.Fprintf(w, "%s\n\n", strings.TrimSpace(seg.Text))
+}
+
+func (seg *Segment) WriteVTT(w io.Writer, offset time.Duration) {
+	fmt.Fprintf(w, "%s --> %s\n", tsToVtt(time.Duration(seg.Start)+offset), tsToVtt(time.Duration(seg.End)+offset))
+	if seg.SpeakerTurn {
+		fmt.Fprintf(w, "<v Speaker>")
+	}
+	fmt.Fprintf(w, "%s\n\n", strings.TrimSpace(seg.Text))
+}
+
+var (
+	reToken = regexp.MustCompile(`^\s*\[.*\]$`)
+)
+
+func (seg *Segment) WriteText(w io.Writer) {
+	if isToken := reToken.MatchString(seg.Text); isToken && seg.Id > 0 {
+		fmt.Fprint(w, "\n\n"+strings.TrimSpace(seg.Text)+"\n")
+		return
+	}
+	if seg.SpeakerTurn {
+		fmt.Fprint(w, "\n\n[SPEAKER]")
+	}
+	if seg.Id > 0 || seg.SpeakerTurn {
+		fmt.Fprint(w, seg.Text)
+	} else {
+		fmt.Fprint(w, strings.TrimSpace(seg.Text))
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// PRIVATE METHODS
+
+func tsToSrt(ts time.Duration) string {
+	// Extract hours, minutes, seconds, and milliseconds from the duration
+	hours := int(ts.Hours())
+	minutes := int(ts.Minutes()) % 60
+	seconds := int(ts.Seconds()) % 60
+	milliseconds := int(ts.Milliseconds()) % 1000
+
+	// Format the timestamp in the SRT format
+	return fmt.Sprintf("%02d:%02d:%02d,%03d", hours, minutes, seconds, milliseconds)
+}
+
+func tsToVtt(ts time.Duration) string {
+	// Extract hours, minutes, seconds, and milliseconds from the duration
+	hours := int(ts.Hours())
+	minutes := int(ts.Minutes()) % 60
+	seconds := int(ts.Seconds()) % 60
+	milliseconds := int(ts.Milliseconds()) % 1000
+
+	// Format the timestamp in the SRT format
+	return fmt.Sprintf("%02d:%02d:%02d.%03d", hours, minutes, seconds, milliseconds)
 }
