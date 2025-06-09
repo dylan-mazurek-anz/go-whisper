@@ -1,12 +1,10 @@
 package wav
 
 import (
-
-	// Packages
-
 	"io"
 
-	"github.com/go-audio/audio"
+	// Packages
+	audio "github.com/go-audio/audio"
 	wav "github.com/go-audio/wav"
 	writerseeker "github.com/orcaman/writerseeker"
 )

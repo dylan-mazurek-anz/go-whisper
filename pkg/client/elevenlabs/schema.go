@@ -1,9 +1,9 @@
 package elevenlabs
 
 import (
-	// Packages
 	"encoding/json"
 
+	// Packages
 	"github.com/mutablelogic/go-client/pkg/multipart"
 	"github.com/mutablelogic/go-server/pkg/types"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
