@@ -42,3 +42,11 @@ func (t *Timestamp) UnmarshalJSON(data []byte) error {
 	*t = Timestamp(time.Duration(seconds * float64(time.Second)))
 	return nil
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// PUBLIC METHODS
+
+func SecToTimestamp(sec float64) Timestamp {
+	// Convert seconds to Timestamp
+	return Timestamp(time.Duration(sec * float64(time.Second)))
+}

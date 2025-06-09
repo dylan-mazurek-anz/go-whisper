@@ -17,7 +17,8 @@ type Segment struct {
 	Start       Timestamp `json:"start" writer:",right,width:5"`
 	End         Timestamp `json:"end" writer:",right,width:5"`
 	Text        string    `json:"text" writer:",wrap,width:70"`
-	SpeakerTurn bool      `json:"speaker_turn,omitempty"` // TODO
+	Speaker     string    `json:"speaker,omitempty" writer:",width:20"` // TODO
+	SpeakerTurn bool      `json:"speaker_turn,omitempty"`               // TODO
 }
 
 //////////////////////////////////////////////////////////////////////////////
