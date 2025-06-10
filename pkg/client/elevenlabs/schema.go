@@ -23,6 +23,13 @@ type TranscribeRequest struct {
 	FileFormat     *string        `json:"file_format,omitempty"` // pcm_s16le_16, other
 }
 
+type TranscribeResponse struct {
+	Language    string           `json:"language_code"`
+	Probability float64          `json:"language_probability"`
+	Text        string           `json:"text"`
+	Words       []TranscribeWord `json:"words,omitempty"` // Only present if timestamps_granularity is set to word or character
+}
+
 type TranscribeWord struct {
 	Text    string           `json:"text"`
 	Type    string           `json:"type"`              // word, spacing, audio_event
@@ -39,23 +46,16 @@ type TranscribeChar struct {
 	End   float64 `json:"end"`
 }
 
-type TranscribeResponse struct {
-	Language    string           `json:"language_code"`
-	Probability float64          `json:"language_probability"`
-	Text        string           `json:"text"`
-	Words       []TranscribeWord `json:"words,omitempty"` // Only present if timestamps_granularity is set to word or character
-}
-
 /////////////////////////////////////////////////////////////////////////////////
 // GLOBALS
 
 const (
-	ElevenLabsEndpoint   = "https://api.elevenlabs.io/v1"
-	ElevenLabsTranscribe = "speech-to-text" // Endpoint for transcription
+	Endpoint       = "https://api.elevenlabs.io/v1"
+	TranscribePath = "speech-to-text" // Endpoint for transcription
 )
 
 var (
-	ElevenLabsModels = []string{"scribe_v1", "scribe_v1_experimental"}
+	Models = []string{"scribe_v1", "scribe_v1_experimental"}
 )
 
 /////////////////////////////////////////////////////////////////////////////////

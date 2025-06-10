@@ -1,4 +1,4 @@
-package elevenlabs
+package openai
 
 import (
 	// Packages
@@ -19,7 +19,10 @@ type Client struct {
 func New(apikey string, opts ...client.ClientOpt) (*Client, error) {
 	opts = append([]client.ClientOpt{
 		client.OptEndpoint(Endpoint),
-		client.OptHeader("xi-api-key", apikey),
+		client.OptReqToken(client.Token{
+			Scheme: "Bearer",
+			Value:  apikey,
+		}),
 	}, opts...)
 	if client, err := client.New(opts...); err != nil {
 		return nil, err

@@ -1,36 +1,140 @@
 package client
 
-import "time"
+import (
+	"io"
+	"slices"
+
+	// Packages
+	"github.com/mutablelogic/go-client/pkg/multipart"
+	"github.com/mutablelogic/go-server/pkg/types"
+	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+)
 
 // Request options
 type opts struct {
-	Language    string        `json:"language,omitempty"`
-	SegmentSize time.Duration `json:"segment_size,omitempty"`
-	ResponseFmt string        `json:"response_format,omitempty"`
+	openai.TranscriptionRequest
+	elevenlabs.TranscribeRequest
 }
 
 type Opt func(*opts) error
 
 ///////////////////////////////////////////////////////////////////////////////
+// LIFECYCLE
+
+func applyOpts(model string, r io.Reader, opt ...Opt) (*opts, error) {
+	var o opts
+	o.Model = model
+	o.TranscriptionRequest.File = multipart.File{Body: r}
+	o.TranscribeRequest.File = multipart.File{Body: r}
+	for _, opt := range opt {
+		if err := opt(&o); err != nil {
+			return nil, err
+		}
+	}
+	return &o, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
+// Set language for transcription
 func OptLanguage(language string) Opt {
 	return func(o *opts) error {
-		o.Language = language
+		o.TranscriptionRequest.Language = types.StringPtr(language)
+		o.TranscribeRequest.Language = types.StringPtr(language)
 		return nil
 	}
 }
 
-func OptSegmentSize(v time.Duration) Opt {
+// Set format for transcription (json, srt, vtt, text)
+func OptFormat(v string) Opt {
 	return func(o *opts) error {
-		o.SegmentSize = v
+		// Convert json to verbose format
+		if v == "json" {
+			v = openai.FormatJson
+		}
+		o.TranscriptionRequest.Format = types.StringPtr(v)
 		return nil
 	}
 }
 
-func OptResponseFormat(v string) Opt {
+// Set path for the file to be transcribed
+func OptPath(v string) Opt {
 	return func(o *opts) error {
-		o.ResponseFmt = v
+		o.TranscriptionRequest.File.Path = v
+		o.TranscribeRequest.File.Path = v
+		return nil
+	}
+}
+
+// Text to guide the model's style or continue a previous audio segment.
+func OptPrompt(v string) Opt {
+	return func(o *opts) error {
+		o.TranscriptionRequest.Prompt = types.StringPtr(v)
+		return nil
+	}
+}
+
+// The sampling temperature, between 0 and 1.
+func OptTemperature(v float64) Opt {
+	return func(o *opts) error {
+		o.TranscriptionRequest.Temperature = types.Float64Ptr(v)
+		return nil
+	}
+}
+
+// Return the log probabilities of the tokens in the response to understand the model's confidence in the transcription.
+func OptLogprobs() Opt {
+	return func(o *opts) error {
+		if !slices.Contains(o.TranscriptionRequest.Include, "logprobs") {
+			o.TranscriptionRequest.Include = append(o.TranscriptionRequest.Include, "logprobs")
+		}
+		return nil
+	}
+}
+
+// Model response data will be streamed to the client as it is generated using server-sent events.
+func OptStream() Opt {
+	return func(o *opts) error {
+		o.TranscriptionRequest.Stream = types.BoolPtr(true)
+		return nil
+	}
+}
+
+// Word-level timestamp granularities to populate for this transcription.
+func OptGranularityWord() Opt {
+	return func(o *opts) error {
+		o.TranscribeRequest.Timestamps = types.StringPtr("word")
+		if !slices.Contains(o.TranscriptionRequest.Timestamps, "word") {
+			o.TranscriptionRequest.Include = append(o.TranscriptionRequest.Timestamps, "word")
+		}
+		return nil
+	}
+}
+
+// Character-level timestamp granularities to populate for this transcription.
+func OptGranularityChar() Opt {
+	return func(o *opts) error {
+		o.TranscribeRequest.Timestamps = types.StringPtr("character")
+		return nil
+	}
+}
+
+// Segment-level timestamp granularities to populate for this transcription.
+func OptGranularitySegment() Opt {
+	return func(o *opts) error {
+		if !slices.Contains(o.TranscriptionRequest.Timestamps, "segment") {
+			o.TranscriptionRequest.Include = append(o.TranscriptionRequest.Timestamps, "segment")
+		}
+		return nil
+	}
+}
+
+// Character-level timestamp granularities to populate for this transcription.
+func OptDiarize() Opt {
+	return func(o *opts) error {
+		o.TranscribeRequest.Diarize = types.BoolPtr(true)
 		return nil
 	}
 }

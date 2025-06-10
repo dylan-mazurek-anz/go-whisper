@@ -1,4 +1,4 @@
-package elevenlabs
+package openai
 
 import (
 	"context"
@@ -14,8 +14,9 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
-func (c *Client) Transcribe(ctx context.Context, req TranscribeRequest) (*TranscribeResponse, error) {
-	var response TranscribeResponse
+// Transcribe performs a transcription request in the language of the speech
+func (c *Client) Transcribe(ctx context.Context, req TranscriptionRequest) (*TranscriptionResponse, error) {
+	var response TranscriptionResponse
 
 	// Set default model
 	if req.Model == "" {

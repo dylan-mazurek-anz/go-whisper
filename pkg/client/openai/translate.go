@@ -1,4 +1,4 @@
-package elevenlabs
+package openai
 
 import (
 	"context"
@@ -14,8 +14,9 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
-func (c *Client) Transcribe(ctx context.Context, req TranscribeRequest) (*TranscribeResponse, error) {
-	var response TranscribeResponse
+// Translate performs a transcription request and returns the result in english
+func (c *Client) Translate(ctx context.Context, req TranslationRequest) (*TranscriptionResponse, error) {
+	var response TranscriptionResponse
 
 	// Set default model
 	if req.Model == "" {
@@ -36,7 +37,7 @@ func (c *Client) Transcribe(ctx context.Context, req TranscribeRequest) (*Transc
 	// Create multipart request, and execute it
 	if payload, err := client.NewMultipartRequest(req, client.ContentTypeAny); err != nil {
 		return nil, err
-	} else if err := c.Do(payload, &response, client.OptPath(TranscribePath)); err != nil {
+	} else if err := c.Do(payload, &response, client.OptPath(TranslatePath)); err != nil {
 		return nil, err
 	}
 

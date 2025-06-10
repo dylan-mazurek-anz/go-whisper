@@ -2,39 +2,124 @@ package client
 
 import (
 	"context"
-	"errors"
 	"io"
-	"net/url"
 	"os"
-	"path/filepath"
+	"slices"
 
 	// Packages
 	"github.com/mutablelogic/go-client"
-	"github.com/mutablelogic/go-client/pkg/multipart"
-	"github.com/mutablelogic/go-server/pkg/types"
-	"github.com/mutablelogic/go-whisper/pkg/schema"
+	"github.com/mutablelogic/go-server/pkg/httpresponse"
+	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
 // TYPES
 
 type Client struct {
-	*client.Client
+	openai     *openai.Client
+	elevenlabs *elevenlabs.Client
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-// New creates a new client, with the endpoint of the whisper service
-// ie, http://localhost:8080/v1
-func New(endpoint string, opts ...client.ClientOpt) (*Client, error) {
-	if client, err := client.New(append(opts, client.OptEndpoint(endpoint))...); err != nil {
-		return nil, err
-	} else {
-		return &Client{Client: client}, nil
+// New creates a new client, with openai, elevenlabs and other clients
+func New(opts ...client.ClientOpt) (*Client, error) {
+	self := new(Client)
+
+	// openai client
+	if key := openai_key(); key != "" {
+		if client, err := openai.New(key, opts...); err != nil {
+			return nil, err
+		} else {
+			self.openai = client
+		}
 	}
+
+	// elevenlabs client
+	if key := elevenlabs_key(); key != "" {
+		if client, err := elevenlabs.New(key, opts...); err != nil {
+			return nil, err
+		} else {
+			self.elevenlabs = client
+		}
+	}
+
+	// Return success
+	return self, nil
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// PRIVATE METHODS
+
+func openai_key() string {
+	return os.Getenv("OPENAI_API_KEY")
+}
+
+func elevenlabs_key() string {
+	return os.Getenv("ELEVENLABS_API_KEY")
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// PUBLIC METHODS
+
+// List models for transcription and translation
+func (c *Client) ListModels(ctx context.Context) ([]string, error) {
+	result := make([]string, 0, 10)
+	if c.openai != nil {
+		result = append(result, openai.Models...)
+	}
+	if c.elevenlabs != nil {
+		result = append(result, elevenlabs.Models...)
+	}
+	// Return success
+	return result, nil
+}
+
+// Transcribe performs a transcription request in the language of the speech
+func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) error {
+	switch {
+	case c.openai != nil && slices.Contains(openai.Models, model):
+		if req, err := applyOpts(model, r, opt...); err != nil {
+			return err
+		} else if _, err := c.openai.Transcribe(ctx, req.TranscriptionRequest); err != nil {
+			return err
+		}
+	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
+		if req, err := applyOpts(model, r, opt...); err != nil {
+			return err
+		} else if _, err := c.elevenlabs.Transcribe(ctx, req.TranscribeRequest); err != nil {
+			return err
+		}
+	default:
+		return httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
+	}
+
+	// Return success
+	return nil
+}
+
+// Translate performs a transcription request and returns the result in english
+func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt ...Opt) error {
+	switch {
+	case c.openai != nil && slices.Contains(openai.Models, model):
+		if req, err := applyOpts(model, r, opt...); err != nil {
+			return err
+		} else if _, err := c.openai.Translate(ctx, req.TranscriptionRequest.TranslationRequest); err != nil {
+			return err
+		}
+	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
+		return httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
+	default:
+		return httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
+	}
+
+	// Return success
+	return nil
+}
+
+/*
 ///////////////////////////////////////////////////////////////////////////////
 // PING
 
@@ -197,3 +282,4 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	// Return success
 	return &response, nil
 }
+*/
