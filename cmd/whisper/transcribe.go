@@ -8,14 +8,12 @@ import (
 	// Packages
 	goclient "github.com/mutablelogic/go-client"
 	segmenter "github.com/mutablelogic/go-media/pkg/segmenter"
+	httpresponse "github.com/mutablelogic/go-server/pkg/httpresponse"
 	whisper "github.com/mutablelogic/go-whisper"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
 	schema "github.com/mutablelogic/go-whisper/pkg/schema"
 	task "github.com/mutablelogic/go-whisper/pkg/task"
-	"github.com/mutablelogic/go-whisper/pkg/wav"
-
-	// Namespace imports
-	. "github.com/djthorpe/go-errors"
+	wav "github.com/mutablelogic/go-whisper/pkg/wav"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,28 +24,20 @@ type TranslateCmd struct {
 	Path     string        `arg:"" help:"Path to audio file"`
 	Format   string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
 	Segments time.Duration `flag:"" help:"Segment size for reading audio file"`
-	Api      bool          `flag:"" help:"Use API for translation"`
-	ApiKey   string        `flag:"" env:"OPENAI_API_KEY" help:"API key for remote service"`
+	Api      bool          `flag:"" help:"Use API for translation or transcription"`
 }
 
 type TranscribeCmd struct {
 	TranslateCmd
-	Language string `flag:"language" help:"Language to transcribe" default:"auto"`
+	Language string `flag:"language" help:"Language to transcribe"`
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// GLOBALS
-
-const (
-	remoteUrl = "https://api.openai.com/v1"
-)
 
 ////////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
 func (cmd *TranscribeCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.ApiKey)
+		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false)
 	} else {
 		return run_local(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false)
 	}
@@ -55,7 +45,7 @@ func (cmd *TranscribeCmd) Run(app *Globals) error {
 
 func (cmd *TranslateCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.ApiKey)
+		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true)
 	} else {
 		return run_local(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true)
 	}
@@ -65,7 +55,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	// Get the model
 	model_ := app.service.GetModelById(model)
 	if model_ == nil {
-		return ErrNotFound.With(model)
+		return httpresponse.ErrNotFound.With(model)
 	}
 
 	// Open the audio file
@@ -122,7 +112,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	})
 }
 
-func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate bool, apikey string) error {
+func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate bool) error {
 	// Open the audio file
 	f, err := os.Open(path)
 	if err != nil {
@@ -131,17 +121,13 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 	defer f.Close()
 
 	// Create a client for the whisper service
-	opts := []goclient.ClientOpt{}
+	opts := []goclient.ClientOpt{
+		goclient.OptTimeout(5 * time.Minute), // Set a timeout for the request
+	}
 	if app.Debug {
 		opts = append(opts, goclient.OptTrace(os.Stderr, false))
 	}
-	if apikey != "" {
-		opts = append(opts, goclient.OptReqToken(goclient.Token{
-			Scheme: "Bearer",
-			Value:  apikey,
-		}))
-	}
-	remote, err := client.New(remoteUrl, opts...)
+	remote, err := client.New(opts...)
 	if err != nil {
 		return err
 	}
@@ -163,14 +149,14 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 
 		var segments []*schema.Segment
 		if translate {
-			translation, err := remote.Translate(app.ctx, model, r, client.OptResponseFormat("verbose_json"))
+			translation, err := remote.Translate(app.ctx, model, r, client.OptPath("audio.wav"), client.OptFormat("json"))
 			if err != nil {
 				return err
 			} else {
 				segments = translation.Segments
 			}
 		} else {
-			transcription, err := remote.Transcribe(app.ctx, model, r, client.OptLanguage(language), client.OptResponseFormat("verbose_json"))
+			transcription, err := remote.Transcribe(app.ctx, model, r, client.OptLanguage(language), client.OptPath("audio.wav"), client.OptFormat("json"))
 			if err != nil {
 				return err
 			} else {

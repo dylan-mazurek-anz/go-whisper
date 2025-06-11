@@ -11,6 +11,7 @@ import (
 	"github.com/mutablelogic/go-server/pkg/httpresponse"
 	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
 	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -65,58 +66,76 @@ func elevenlabs_key() string {
 // PUBLIC METHODS
 
 // List models for transcription and translation
-func (c *Client) ListModels(ctx context.Context) ([]string, error) {
-	result := make([]string, 0, 10)
+func (c *Client) ListModels(ctx context.Context) ([]schema.Model, error) {
+	result := make([]schema.Model, 0, 10)
 	if c.openai != nil {
-		result = append(result, openai.Models...)
+		for _, model := range openai.Models {
+			result = append(result, schema.Model{
+				Id:   model,
+				Path: "openai",
+			})
+		}
 	}
 	if c.elevenlabs != nil {
-		result = append(result, elevenlabs.Models...)
+		for _, model := range elevenlabs.Models {
+			result = append(result, schema.Model{
+				Id:   model,
+				Path: "elevenlabs",
+			})
+		}
 	}
 	// Return success
 	return result, nil
 }
 
 // Transcribe performs a transcription request in the language of the speech
-func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) error {
+func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
+	var response *schema.Transcription
 	switch {
 	case c.openai != nil && slices.Contains(openai.Models, model):
-		if req, err := applyOpts(model, r, opt...); err != nil {
-			return err
-		} else if _, err := c.openai.Transcribe(ctx, req.TranscriptionRequest); err != nil {
-			return err
+		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
+			return nil, err
+		} else if resp, err := c.openai.Transcribe(ctx, req.TranscriptionRequest); err != nil {
+			return nil, err
+		} else {
+			response = resp.Segments()
 		}
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
-		if req, err := applyOpts(model, r, opt...); err != nil {
-			return err
-		} else if _, err := c.elevenlabs.Transcribe(ctx, req.TranscribeRequest); err != nil {
-			return err
+		if req, err := applyOpts(apielevenlabs, model, r, opt...); err != nil {
+			return nil, err
+		} else if resp, err := c.elevenlabs.Transcribe(ctx, req.TranscribeRequest); err != nil {
+			return nil, err
+		} else {
+			response = resp.Segments()
 		}
 	default:
-		return httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
+		return nil, httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
 	}
 
 	// Return success
-	return nil
+	return response, nil
 }
 
 // Translate performs a transcription request and returns the result in english
-func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt ...Opt) error {
+func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
+	var response *schema.Transcription
 	switch {
 	case c.openai != nil && slices.Contains(openai.Models, model):
-		if req, err := applyOpts(model, r, opt...); err != nil {
-			return err
-		} else if _, err := c.openai.Translate(ctx, req.TranscriptionRequest.TranslationRequest); err != nil {
-			return err
+		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
+			return nil, err
+		} else if resp, err := c.openai.Translate(ctx, req.TranscriptionRequest.TranslationRequest); err != nil {
+			return nil, err
+		} else {
+			response = resp.Segments()
 		}
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
-		return httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
+		return nil, httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
 	default:
-		return httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
+		return nil, httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
 	}
 
 	// Return success
-	return nil
+	return response, nil
 }
 
 /*

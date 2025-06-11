@@ -36,7 +36,7 @@ type TranscriptionResponse struct {
 	Language string                  `json:"language,omitempty"`
 	Duration schema.Timestamp        `json:"duration,omitempty"`
 	Text     string                  `json:"text,omitempty"`
-	Segments []*TranscriptionSegment `json:"segments,omitempty" writer:",width:40,wrap"`
+	Segment  []*TranscriptionSegment `json:"segments,omitempty" writer:",width:40,wrap"`
 }
 
 type TranscriptionSegment struct {
@@ -123,4 +123,26 @@ func (s *TranscriptionResponse) Unmarshal(header http.Header, r io.Reader) error
 
 	// Decode error
 	return httpresponse.ErrBadRequest.Withf("Unsupported content type %q", mimetype)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// PUBLIC METHODS
+
+func (s *TranscriptionResponse) Segments() *schema.Transcription {
+	resp := &schema.Transcription{
+		Task:     s.Task,
+		Language: s.Language,
+		Duration: s.Duration,
+		Text:     s.Text,
+		Segments: make([]*schema.Segment, 0, len(s.Segment)),
+	}
+	for _, seg := range s.Segment {
+		resp.Segments = append(resp.Segments, &schema.Segment{
+			Id:    seg.Id,
+			Start: seg.Start,
+			End:   seg.End,
+			Text:  seg.Text,
+		})
+	}
+	return resp
 }

@@ -1,10 +1,12 @@
-package schema
+package elevenlabs
+
+import "strings"
 
 //////////////////////////////////////////////////////////////////////////////
 // GLOBALS
 
 var (
-	LANGUAGES = map[string]string{
+	codeLanguage = map[string]string{
 		"afr": "afrikaans",
 		"amh": "amharic",
 		"ara": "arabic",
@@ -105,4 +107,32 @@ var (
 		"xho": "xhosa",
 		"zul": "zulu",
 	}
+	languageCode = make(map[string]string, len(codeLanguage))
 )
+
+//////////////////////////////////////////////////////////////////////////////
+// LIFECYCLE
+
+func init() {
+	// Initialize the languageCode map from codeLanguage
+	for code, language := range codeLanguage {
+		languageCode[language] = code
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// PUBLIC METHODS
+
+// LanguageCode returns the language and three-letter ElevenLabs language
+// code for a given tuple, or an empty string if the language
+// is not recognized.
+func LanguageCode(language string) (string, string) {
+	language = strings.ToLower(language)
+	if language_, ok := codeLanguage[language]; ok {
+		return language_, language
+	}
+	if code, ok := languageCode[language]; ok {
+		return language, code
+	}
+	return "", ""
+}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	// Packages
-
 	"github.com/mutablelogic/go-whisper/pkg/client"
 	"github.com/stretchr/testify/assert"
 )
