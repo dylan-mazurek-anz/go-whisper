@@ -48,7 +48,7 @@ ifeq ($(GGML_VULKAN),1)
 endif
 
 # Targets
-all: whisper api
+all: whisper
 
 # Generate the pkg-config files
 generate: mkdir go-tidy libwhisper
