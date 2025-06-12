@@ -37,7 +37,9 @@ func (s *Segment) String() string {
 
 func (seg *Segment) WriteSRT(w io.Writer, offset time.Duration) {
 	fmt.Fprintf(w, "%d\n%s --> %s\n", seg.Id, tsToSrt(time.Duration(seg.Start)+offset), tsToSrt(time.Duration(seg.End)+offset))
-	if seg.SpeakerTurn {
+	if seg.Speaker != "" {
+		fmt.Fprintf(w, "[%s] ", seg.Speaker)
+	} else if seg.SpeakerTurn {
 		fmt.Fprintf(w, "[SPEAKER] ")
 	}
 	fmt.Fprintf(w, "%s\n\n", strings.TrimSpace(seg.Text))
@@ -60,10 +62,12 @@ func (seg *Segment) WriteText(w io.Writer) {
 		fmt.Fprint(w, "\n\n"+strings.TrimSpace(seg.Text)+"\n")
 		return
 	}
-	if seg.SpeakerTurn {
-		fmt.Fprint(w, "\n\n[SPEAKER]")
+	if seg.Speaker != "" {
+		fmt.Fprintf(w, "\n\n[%s] ", seg.Speaker)
+	} else if seg.SpeakerTurn {
+		fmt.Fprint(w, "\n\n[SPEAKER] ")
 	}
-	if seg.Id > 0 || seg.SpeakerTurn {
+	if seg.Id > 0 {
 		fmt.Fprint(w, seg.Text)
 	} else {
 		fmt.Fprint(w, strings.TrimSpace(seg.Text))

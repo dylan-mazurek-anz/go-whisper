@@ -167,7 +167,12 @@ func OptGranularitySegment() Opt {
 // Character-level timestamp granularities to populate for this transcription.
 func OptDiarize() Opt {
 	return func(api apitype, o *opts) error {
-		o.TranscribeRequest.Diarize = types.BoolPtr(true)
+		switch api {
+		case apielevenlabs:
+			o.TranscribeRequest.Diarize = types.BoolPtr(true)
+		default:
+			return httpresponse.ErrBadRequest.With("diarization not supported")
+		}
 		return nil
 	}
 }

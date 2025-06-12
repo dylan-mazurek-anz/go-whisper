@@ -25,6 +25,7 @@ type TranslateCmd struct {
 	Format   string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
 	Segments time.Duration `flag:"" help:"Segment size for reading audio file"`
 	Api      bool          `flag:"" help:"Use API for translation or transcription"`
+	Diarize  bool          `flag:"" help:"Diarize the transcription"`
 }
 
 type TranscribeCmd struct {
@@ -37,7 +38,7 @@ type TranscribeCmd struct {
 
 func (cmd *TranscribeCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false)
+		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize)
 	} else {
 		return run_local(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false)
 	}
@@ -45,7 +46,7 @@ func (cmd *TranscribeCmd) Run(app *Globals) error {
 
 func (cmd *TranslateCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true)
+		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize)
 	} else {
 		return run_local(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true)
 	}
@@ -112,7 +113,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	})
 }
 
-func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate bool) error {
+func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize bool) error {
 	// Open the audio file
 	f, err := os.Open(path)
 	if err != nil {
@@ -132,6 +133,17 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 		return err
 	}
 
+	// Create an array of parameters for the transcription
+	params := []client.Opt{
+		client.OptPath("audio.wav"), client.OptFormat("json"),
+	}
+	if !translate && language != "" {
+		params = append(params, client.OptLanguage(language))
+	}
+	if diarize {
+		params = append(params, client.OptDiarize())
+	}
+
 	// Create a segmenter - read segments based on requested segment size
 	segmenter, err := segmenter.NewReader(f, segments, whisper.SampleRate)
 	if err != nil {
@@ -149,14 +161,14 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 
 		var segments []*schema.Segment
 		if translate {
-			translation, err := remote.Translate(app.ctx, model, r, client.OptPath("audio.wav"), client.OptFormat("json"))
+			translation, err := remote.Translate(app.ctx, model, r, params...)
 			if err != nil {
 				return err
 			} else {
 				segments = translation.Segments
 			}
 		} else {
-			transcription, err := remote.Transcribe(app.ctx, model, r, client.OptLanguage(language), client.OptPath("audio.wav"), client.OptFormat("json"))
+			transcription, err := remote.Transcribe(app.ctx, model, r, params...)
 			if err != nil {
 				return err
 			} else {
