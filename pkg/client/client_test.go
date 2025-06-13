@@ -31,7 +31,7 @@ func Test_Transcribe_001(t *testing.T) {
 	}
 
 	for _, model := range models {
-		t.Run(model, func(t *testing.T) {
+		t.Run(model.Id, func(t *testing.T) {
 			// Open sample file
 			f, err := os.Open(filepath.Join("../../samples/jfk.wav"))
 			if !assert.NoError(err) {
@@ -39,7 +39,7 @@ func Test_Transcribe_001(t *testing.T) {
 			}
 			defer f.Close()
 
-			err = client.Transcribe(context.Background(), model, f)
+			_, err = client.Transcribe(context.Background(), model.Id, f)
 			if !assert.NoError(err) {
 				assert.FailNow("failed to transcribe audio")
 			}

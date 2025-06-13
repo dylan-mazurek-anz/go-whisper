@@ -10,6 +10,7 @@ import (
 	"github.com/mutablelogic/go-client"
 	"github.com/mutablelogic/go-server/pkg/httpresponse"
 	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
+	"github.com/mutablelogic/go-whisper/pkg/client/gowhisper"
 	"github.com/mutablelogic/go-whisper/pkg/client/openai"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
@@ -20,6 +21,7 @@ import (
 type Client struct {
 	openai     *openai.Client
 	elevenlabs *elevenlabs.Client
+	gowhisper  *gowhisper.Client
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,6 +49,15 @@ func New(opts ...client.ClientOpt) (*Client, error) {
 		}
 	}
 
+	// gowhisper client
+	if endpoint := gowhisper_endpoint(); endpoint != "" {
+		if client, err := gowhisper.New(endpoint, opts...); err != nil {
+			return nil, err
+		} else {
+			self.gowhisper = client
+		}
+	}
+
 	// Return success
 	return self, nil
 }
@@ -60,6 +71,10 @@ func openai_key() string {
 
 func elevenlabs_key() string {
 	return os.Getenv("ELEVENLABS_API_KEY")
+}
+
+func gowhisper_endpoint() string {
+	return os.Getenv("WHISPER_URL")
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +99,14 @@ func (c *Client) ListModels(ctx context.Context) ([]schema.Model, error) {
 			})
 		}
 	}
+	if c.gowhisper != nil {
+		models, err := c.gowhisper.ListModels(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, models...)
+	}
+
 	// Return success
 	return result, nil
 }
@@ -95,7 +118,7 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	case c.openai != nil && slices.Contains(openai.Models, model):
 		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
 			return nil, err
-		} else if resp, err := c.openai.Transcribe(ctx, req.TranscriptionRequest); err != nil {
+		} else if resp, err := c.openai.Transcribe(ctx, req.openai); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
@@ -103,7 +126,15 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
 		if req, err := applyOpts(apielevenlabs, model, r, opt...); err != nil {
 			return nil, err
-		} else if resp, err := c.elevenlabs.Transcribe(ctx, req.TranscribeRequest); err != nil {
+		} else if resp, err := c.elevenlabs.Transcribe(ctx, req.elevenlabs); err != nil {
+			return nil, err
+		} else {
+			response = resp.Segments()
+		}
+	case c.gowhisper != nil && model != "":
+		if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
+			return nil, err
+		} else if resp, err := c.gowhisper.Transcribe(ctx, req.gowhisper); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
@@ -123,13 +154,24 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	case c.openai != nil && slices.Contains(openai.Models, model):
 		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
 			return nil, err
-		} else if resp, err := c.openai.Translate(ctx, req.TranscriptionRequest.TranslationRequest); err != nil {
+		} else if resp, err := c.openai.Translate(ctx, req.openai.TranslationRequest); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
 		}
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
 		return nil, httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
+	// TODO
+	/*
+		case c.gowhisper != nil && model != "":
+			if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
+				return nil, err
+			} else if resp, err := c.gowhisper.Translate(ctx, req.gowhisper.TranslationRequest); err != nil {
+				return nil, err
+			} else {
+				response = resp.Segments()
+			}
+	*/
 	default:
 		return nil, httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
 	}
@@ -139,26 +181,6 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 }
 
 /*
-///////////////////////////////////////////////////////////////////////////////
-// PING
-
-func (c *Client) Ping(ctx context.Context) error {
-	return c.DoWithContext(ctx, client.MethodGet, nil, client.OptPath("health"))
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// MODELS
-
-func (c *Client) ListModels(ctx context.Context) ([]schema.Model, error) {
-	var models struct {
-		Models []schema.Model `json:"models"`
-	}
-	if err := c.DoWithContext(ctx, client.MethodGet, &models, client.OptPath("models")); err != nil {
-		return nil, err
-	}
-	// Return success
-	return models.Models, nil
-}
 
 func (c *Client) DeleteModel(ctx context.Context, model string) error {
 	return c.DoWithContext(ctx, client.MethodDelete, nil, client.OptPath("models", model))
