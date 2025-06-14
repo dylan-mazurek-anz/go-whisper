@@ -63,7 +63,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		result = taskctx.Result()
 
 		// Decode, resample and segment the audio file
-		return segment(ctx, w, taskctx, req.File.Body, func(seg *schema.Segment) {
+		return segment(ctx, taskctx, req.File.Body, func(seg *schema.Segment) {
 			// TODO - for streaming
 		})
 	}); err != nil {
@@ -116,7 +116,7 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 		result = taskctx.Result()
 
 		// Decode, resample and segment the audio file
-		return segment(ctx, w, taskctx, req.File.Body, func(seg *schema.Segment) {
+		return segment(ctx, taskctx, req.File.Body, func(seg *schema.Segment) {
 			// TODO - for streaming
 		})
 	}); err != nil {
@@ -127,7 +127,7 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 	return response(w, types.PtrString(req.Format), result)
 }
 
-func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
+func segment(ctx context.Context, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
 	// Create a segmenter
 	segmenter, err := segmenter.NewReader(r, 0, whisper.SampleRate)
 	if err != nil {
@@ -170,6 +170,9 @@ func response(w http.ResponseWriter, format string, response *schema.Transcripti
 		})
 	case FormatVtt:
 		return httpresponse.Write(w, http.StatusOK, "text/vtt", func(w io.Writer) (int, error) {
+			if _, err := w.Write([]byte("WEBVTT\n\n")); err != nil {
+				return 0, err
+			}
 			for _, seg := range response.Segments {
 				task.WriteSegmentVtt(w, seg)
 			}
@@ -375,28 +378,6 @@ func TranscribeStream(ctx context.Context, service *whisper.Whisper, w http.Resp
 	if stream != nil {
 		stream.Write("ok")
 		return
-	}
-
-	// Rrturn result based on response format
-	switch req.ResponseFormat() {
-	case FormatJson, FormatVerboseJson:
-		httpresponse.JSON(w, result, http.StatusOK, 0)
-	case FormatText:
-		httpresponse.Text(w, "", http.StatusOK)
-		for _, seg := range result.Segments {
-			task.WriteSegmentText(w, seg)
-		}
-		w.Write([]byte("\n"))
-	case FormatSrt:
-		httpresponse.Text(w, "", http.StatusOK, "Content-Type", "application/x-subrip")
-		for _, seg := range result.Segments {
-			task.WriteSegmentSrt(w, seg)
-		}
-	case FormatVtt:
-		httpresponse.Text(w, "WEBVTT\n\n", http.StatusOK, "Content-Type", "text/vtt")
-		for _, seg := range result.Segments {
-			task.WriteSegmentVtt(w, seg)
-		}
 	}
 }
 */
