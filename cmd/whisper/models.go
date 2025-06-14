@@ -11,11 +11,11 @@ import (
 )
 
 type ModelsCmd struct {
-	Api bool `flag:"" help:"Use API for listing models"`
+	Remote bool `flag:"" help:"List remote (openai, gowhisper, elevenlabs) models"`
 }
 
 func (cmd ModelsCmd) Run(ctx *Globals) error {
-	if cmd.Api {
+	if cmd.Remote {
 		return run_remote_models(ctx)
 	} else {
 		return run_local_models(ctx)

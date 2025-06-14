@@ -148,7 +148,7 @@ func OptLogprobs() Opt {
 				o.openai.Include = append(o.openai.Include, "logprobs")
 			}
 		default:
-			return httpresponse.ErrNotImplemented.Withf("OptTemperature not supported")
+			return httpresponse.ErrNotImplemented.Withf("OptLogprobs not supported")
 		}
 		return nil
 	}

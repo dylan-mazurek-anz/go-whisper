@@ -198,6 +198,34 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 	return nil
 }
 
+// Set temperature for sampling
+func (ctx *Context) SetTemperature(v float64) error {
+	if v < 0 || v > 1 {
+		return ErrBadParameter.Withf("temperature must be between 0 and 1, got %f", v)
+	}
+	ctx.params.SetTemperature(float32(v))
+	return nil
+}
+
+/*
+// Set initial prompt tokens for the transcription
+func (ctx *Context) SetPrompt(prompt []string) error {
+	if len(prompt) == 0 {
+		ctx.params.SetPrompt(nil)
+		return nil
+	}
+	tokens := make([]int32, len(prompt))
+	for i, p := range prompt {
+		tokens[i] = whisper.Whisper_tokenize(ctx.whisper, p)
+		if tokens[i] == -1 {
+			return ErrBadParameter.Withf("invalid prompt token: %q", p)
+		}
+	}
+	ctx.params.SetPrompt(tokens)
+	return nil
+}
+*/
+
 // Set the language. For transcription, this is the language of the
 // audio samples. For translation, this is the language to translate
 // to. If you set this to "auto" then the language will be detected

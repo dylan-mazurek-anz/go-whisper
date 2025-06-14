@@ -9,6 +9,7 @@ import (
 	goclient "github.com/mutablelogic/go-client"
 	segmenter "github.com/mutablelogic/go-media/pkg/segmenter"
 	httpresponse "github.com/mutablelogic/go-server/pkg/httpresponse"
+	"github.com/mutablelogic/go-server/pkg/types"
 	whisper "github.com/mutablelogic/go-whisper"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
 	schema "github.com/mutablelogic/go-whisper/pkg/schema"
@@ -20,56 +21,56 @@ import (
 // TYPES
 
 type TranslateCmd struct {
-	Model    string        `arg:"" help:"Model to use"`
-	Path     string        `arg:"" help:"Path to audio file"`
-	Format   string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
-	Segments time.Duration `flag:"" help:"Segment size for reading audio file"`
-	Api      bool          `flag:"" help:"Use API for translation or transcription"`
-	//Temperature float64       `flag:"" help:"Temperature" default:"0.0"`
-	Diarize bool `flag:"" help:"Diarize the transcription"`
-	Stream  bool `flag:"" help:"Stream the transcription results"`
+	Model       string        `arg:"" help:"Model to use"`
+	Path        string        `arg:"" help:"Path to audio file"`
+	Format      string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
+	Segments    time.Duration `flag:"" help:"Segment size for reading audio file"`
+	Remote      bool          `flag:"" help:"Use remote service (gowhisper, openai, elevenlabs) for translation or transcription"`
+	Temperature *float64      `flag:"" help:"Temperature"`
+	Diarize     bool          `flag:"" help:"Diarize the transcription"`
+	Stream      bool          `flag:"" help:"Stream the transcription results"`
+	Language    string        `flag:"language" help:"Language to transcribe"`
 }
 
 type TranscribeCmd struct {
 	TranslateCmd
-	Language string `flag:"language" help:"Language to transcribe"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
 func (cmd *TranscribeCmd) Run(app *Globals) error {
-	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize, cmd.Stream)
+	if cmd.Remote {
+		return cmd.TranslateCmd.run_remote(app, false)
 	} else {
-		return run_local(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize)
+		return cmd.TranslateCmd.run_local(app, false)
 	}
 }
 
 func (cmd *TranslateCmd) Run(app *Globals) error {
-	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize, cmd.Stream)
+	if cmd.Remote {
+		return cmd.run_remote(app, true)
 	} else {
-		return run_local(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize)
+		return cmd.run_local(app, true)
 	}
 }
 
-func run_local(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize bool) error {
+func (cmd *TranslateCmd) run_local(app *Globals, translate bool) error {
 	// Get the model
-	model_ := app.service.GetModelById(model)
+	model_ := app.service.GetModelById(cmd.Model)
 	if model_ == nil {
-		return httpresponse.ErrNotFound.With(model)
+		return httpresponse.ErrNotFound.With(cmd.Model)
 	}
 
 	// Open the audio file
-	f, err := os.Open(path)
+	f, err := os.Open(cmd.Path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	// Create a segmenter - read segments based on requested segment size
-	segmenter, err := segmenter.NewReader(f, segments, whisper.SampleRate)
+	segmenter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate)
 	if err != nil {
 		return err
 	}
@@ -79,11 +80,17 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	return app.service.WithModel(model_, func(taskctx *task.Context) error {
 		// Transcribe or Translate
 		taskctx.SetTranslate(translate)
-		taskctx.SetDiarize(diarize)
+		taskctx.SetDiarize(cmd.Diarize)
 
 		// Set language
-		if language != "" {
-			if err := taskctx.SetLanguage(language); err != nil {
+		if cmd.Language != "" {
+			if err := taskctx.SetLanguage(cmd.Language); err != nil {
+				return err
+			}
+		}
+		// Set temperature
+		if cmd.Temperature != nil {
+			if err := taskctx.SetTemperature(*cmd.Temperature); err != nil {
 				return err
 			}
 		}
@@ -93,7 +100,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 			// Perform the transcription, return any errors
 			return taskctx.Transcribe(app.ctx, ts, buf, func(segment *schema.Segment) {
 				var buf bytes.Buffer
-				switch format {
+				switch cmd.Format {
 				case "json", "verbose_json":
 					app.writer.Writeln(segment)
 				case "srt":
@@ -115,9 +122,9 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	})
 }
 
-func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize, stream bool) error {
+func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 	// Open the audio file
-	f, err := os.Open(path)
+	f, err := os.Open(cmd.Path)
 	if err != nil {
 		return err
 	}
@@ -128,7 +135,7 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 		goclient.OptTimeout(5 * time.Minute), // Set a timeout for the request
 	}
 	if app.Debug {
-		opts = append(opts, goclient.OptTrace(os.Stderr, false))
+		opts = append(opts, goclient.OptTrace(os.Stderr, true))
 	}
 	remote, err := client.New(opts...)
 	if err != nil {
@@ -137,17 +144,21 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 
 	// Create an array of parameters for the transcription
 	params := []client.Opt{
-		client.OptPath("audio.wav"), client.OptFormat("json"),
+		client.OptPath("audio.wav"), client.OptFormat("json"), client.OptLanguage(cmd.Language),
 	}
-	if !translate && language != "" {
-		params = append(params, client.OptLanguage(language))
-	}
-	if diarize {
+	if cmd.Diarize {
 		params = append(params, client.OptDiarize())
+	}
+	if cmd.Stream {
+		params = append(params, client.OptStream())
+	}
+	// Set temperature
+	if cmd.Temperature != nil {
+		params = append(params, client.OptTemperature(types.PtrFloat64(cmd.Temperature)))
 	}
 
 	// Create a segmenter - read segments based on requested segment size
-	segmenter, err := segmenter.NewReader(f, segments, whisper.SampleRate)
+	segmenter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate)
 	if err != nil {
 		return err
 	}
@@ -163,14 +174,14 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 
 		var segments []*schema.Segment
 		if translate {
-			translation, err := remote.Translate(app.ctx, model, r, params...)
+			translation, err := remote.Translate(app.ctx, cmd.Model, r, params...)
 			if err != nil {
 				return err
 			} else {
 				segments = translation.Segments
 			}
 		} else {
-			transcription, err := remote.Transcribe(app.ctx, model, r, params...)
+			transcription, err := remote.Transcribe(app.ctx, cmd.Model, r, params...)
 			if err != nil {
 				return err
 			} else {
@@ -181,7 +192,7 @@ func run_remote(app *Globals, model, path, language, format string, segments tim
 		// Write the segments to the writer
 		for _, segment := range segments {
 			var buf bytes.Buffer
-			switch format {
+			switch cmd.Format {
 			case "json", "verbose_json":
 				app.writer.Writeln(segment)
 			case "srt":

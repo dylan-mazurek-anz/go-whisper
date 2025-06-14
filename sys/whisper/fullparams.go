@@ -2,6 +2,7 @@ package whisper
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"unsafe"
 )
@@ -81,7 +82,6 @@ func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	params.entropy_thold = 2.40
 	params.logprob_thold = -1.0
 	params.no_speech_thold = 0.60
-	params.temperature = 0.4
 	params.temperature_inc = 0.2
 
 	return params
@@ -279,6 +279,15 @@ func (c *FullParams) Language() string {
 		return "auto"
 	}
 	return v
+}
+
+func (c *FullParams) SetTemperature(v float32) {
+	fmt.Println("Setting temperature to:", v)
+	c.temperature = (C.float)(v)
+}
+
+func (c *FullParams) Temperature() float32 {
+	return float32(c.temperature)
 }
 
 func (c *FullParams) SetProgressCallback(ctx *Context, cb ProgressCallback) {

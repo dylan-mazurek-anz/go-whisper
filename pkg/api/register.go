@@ -7,6 +7,7 @@ import (
 	// Packages
 	"github.com/mutablelogic/go-server/pkg/httpresponse"
 	"github.com/mutablelogic/go-whisper"
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -70,12 +71,12 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 	// Translate: POST /v1/audio/translations
 	//   Translates audio into english or another language  - language parameter should be set to the
 	//   destination language of the audio. Will default to english if not set.
-	mux.HandleFunc(joinPath(base, "audio/translations"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(joinPath(base, openai.TranslatePath), func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
 		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Translate)
+			TranslateFile(r.Context(), whisper, w, r)
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
@@ -84,26 +85,12 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 	// Transcribe: POST /v1/audio/transcriptions
 	//   Transcribes audio into the input language - language parameter should be set to the source
 	//   language of the audio
-	mux.HandleFunc(joinPath(base, "audio/transcriptions"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(joinPath(base, openai.TranscribePath), func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
 		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Transcribe)
-		default:
-			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
-		}
-	})
-
-	// Diarize: POST /v1/audio/diarize
-	//   Transcribes audio into the input language - language parameter should be set to the source
-	//   language of the audio. Output speaker parts.
-	mux.HandleFunc(joinPath(base, "audio/diarize"), func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
-		switch r.Method {
-		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Diarize)
+			TranscribeFile(r.Context(), whisper, w, r)
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
