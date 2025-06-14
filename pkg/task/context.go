@@ -176,8 +176,6 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 		})
 	}
 
-	// TODO: Set the initial prompt tokens from any previous transcription call
-
 	// Perform the transcription
 	if err := whisper.Whisper_full(task.whisper, task.params, samples); err != nil {
 		if ctx.Err() != nil {
@@ -186,6 +184,15 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 			return err
 		}
 	}
+
+	// Set the task, language and duration
+	if task.params.Translate() {
+		task.result.Task = "translate"
+	} else {
+		task.result.Task = "transcribe"
+	}
+	task.result.Language = whisper.Whisper_lang_str_full(task.whisper.DefaultLangId())
+	task.result.Duration = schema.Timestamp(float64(len(samples)) * float64(time.Second) / float64(whisper.SampleRate))
 
 	// Remove the callbacks
 	task.params.SetAbortCallback(task.whisper, nil)
@@ -207,24 +214,11 @@ func (ctx *Context) SetTemperature(v float64) error {
 	return nil
 }
 
-/*
 // Set initial prompt tokens for the transcription
-func (ctx *Context) SetPrompt(prompt []string) error {
-	if len(prompt) == 0 {
-		ctx.params.SetPrompt(nil)
-		return nil
-	}
-	tokens := make([]int32, len(prompt))
-	for i, p := range prompt {
-		tokens[i] = whisper.Whisper_tokenize(ctx.whisper, p)
-		if tokens[i] == -1 {
-			return ErrBadParameter.Withf("invalid prompt token: %q", p)
-		}
-	}
-	ctx.params.SetPrompt(tokens)
+func (ctx *Context) SetPrompt(prompt string) error {
+	ctx.params.SetPrompt(prompt)
 	return nil
 }
-*/
 
 // Set the language. For transcription, this is the language of the
 // audio samples. For translation, this is the language to translate

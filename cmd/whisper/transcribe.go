@@ -30,6 +30,7 @@ type TranslateCmd struct {
 	Diarize     bool          `flag:"" help:"Diarize the transcription"`
 	Stream      bool          `flag:"" help:"Stream the transcription results"`
 	Language    string        `flag:"language" help:"Language to transcribe"`
+	Prompt      *string       `flag:"prompt" help:"Prompt to guide the model's style or continue a previous audio segment"`
 }
 
 type TranscribeCmd struct {
@@ -94,6 +95,12 @@ func (cmd *TranslateCmd) run_local(app *Globals, translate bool) error {
 				return err
 			}
 		}
+		// Set prompt
+		if cmd.Prompt != nil {
+			if err := taskctx.SetPrompt(*cmd.Prompt); err != nil {
+				return err
+			}
+		}
 
 		// Read samples and transcribe them
 		if err := segmenter.DecodeFloat32(app.ctx, func(ts time.Duration, buf []float32) error {
@@ -152,9 +159,11 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 	if cmd.Stream {
 		params = append(params, client.OptStream())
 	}
-	// Set temperature
 	if cmd.Temperature != nil {
 		params = append(params, client.OptTemperature(types.PtrFloat64(cmd.Temperature)))
+	}
+	if cmd.Prompt != nil {
+		params = append(params, client.OptPrompt(types.PtrString(cmd.Prompt)))
 	}
 
 	// Create a segmenter - read segments based on requested segment size

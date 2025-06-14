@@ -73,11 +73,10 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	}
 
 	// Start a translation task
-	var response schema.Transcription
+	var response *schema.Transcription
 	if err := service.WithModel(model, func(taskctx *task.Context) error {
 		taskctx.SetTranslate(false)
 		taskctx.SetDiarize(types.PtrBool(req.Diarize))
-		response.Task = "transribe"
 
 		// Set language
 		lang := types.PtrString(req.Language)
@@ -95,16 +94,20 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 			}
 		}
 
-		// TODO: Set prompt
-		/*
-			if req.Prompt != nil {
-				if err := taskctx.SetPrompt(types.PtrString(req.Prompt)); err != nil {
-					return err
-				}
+		// Set prompt
+		if req.Prompt != nil {
+			if err := taskctx.SetPrompt(types.PtrString(req.Prompt)); err != nil {
+				return err
 			}
-		*/
+		}
+
+		// Set response
+		response = taskctx.Result()
+
 		// Decode, resample and segment the audio file
-		return segment(ctx, w, taskctx, req.File.Body)
+		return segment(ctx, w, taskctx, req.File.Body, func(seg *schema.Segment) {
+			// TODO - for streaming
+		})
 	}); err != nil {
 		return httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 	}
@@ -130,22 +133,21 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 	return httpresponse.JSON(w, http.StatusOK, 2, req)
 }
 
-func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, r io.Reader) error {
+func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
 	// Create a segmenter
 	segmenter, err := segmenter.NewReader(r, 0, whisper.SampleRate)
 	if err != nil {
 		return err
 	}
+
 	// Read segments and perform transcription
 	if err := segmenter.DecodeFloat32(ctx, func(ts time.Duration, buf []float32) error {
-		return taskctx.Transcribe(ctx, ts, buf, func(segment *schema.Segment) {
-			fmt.Println(segment)
-		})
+		return taskctx.Transcribe(ctx, ts, buf, fn)
 	}); err != nil {
 		return err
 	}
 
-	// Return success
+	// Return sucess
 	return nil
 }
 
