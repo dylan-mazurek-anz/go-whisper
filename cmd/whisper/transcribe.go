@@ -114,6 +114,9 @@ func (cmd *TranslateCmd) run_local(app *Globals, translate bool) error {
 					task.WriteSegmentSrt(&buf, segment)
 					app.writer.Writeln(buf.String())
 				case "vtt":
+					if segment.Id == 0 {
+						app.writer.Writeln("WEBVTT" + "\n")
+					}
 					task.WriteSegmentVtt(&buf, segment)
 					app.writer.Writeln(buf.String())
 				case "text":

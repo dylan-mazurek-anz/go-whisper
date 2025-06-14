@@ -46,11 +46,19 @@ func (seg *Segment) WriteSRT(w io.Writer, offset time.Duration) {
 }
 
 func (seg *Segment) WriteVTT(w io.Writer, offset time.Duration) {
-	fmt.Fprintf(w, "%s --> %s\n", tsToVtt(time.Duration(seg.Start)+offset), tsToVtt(time.Duration(seg.End)+offset))
-	if seg.SpeakerTurn {
-		fmt.Fprintf(w, "<v Speaker>")
+	text := strings.TrimSpace(seg.Text)
+	if text != "" {
+		fmt.Fprintf(w, "%s --> %s\n", tsToVtt(time.Duration(seg.Start)+offset), tsToVtt(time.Duration(seg.End)+offset))
+		var opener, closer string
+		if seg.Speaker != "" {
+			opener = "<v " + seg.Speaker + ">"
+			closer = "</v>"
+		} else if seg.SpeakerTurn {
+			opener = "<v " + "speaker" + ">"
+			closer = "</v>"
+		}
+		fmt.Fprintf(w, "%s%s%s\n\n", opener, text, closer)
 	}
-	fmt.Fprintf(w, "%s\n\n", strings.TrimSpace(seg.Text))
 }
 
 var (
