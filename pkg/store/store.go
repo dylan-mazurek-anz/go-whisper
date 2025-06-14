@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,6 +179,12 @@ func (s *Store) Delete(id string) error {
 // A function can be provided to track the progress of the download. If no Content-Length is
 // provided by the server, the total bytes will be unknown and is set to zero.
 func (s *Store) Download(ctx context.Context, path string, fn func(curBytes, totalBytes uint64)) (*schema.Model, error) {
+	var remote string
+	if u, err := url.Parse(path); err == nil {
+		remote = u.String()
+		path = u.Path
+	}
+
 	// abspath should be contained within the models directory
 	abspath := filepath.Clean(filepath.Join(s.path, path))
 	if !strings.HasPrefix(abspath, s.path) {
@@ -219,7 +226,7 @@ func (s *Store) Download(ctx context.Context, path string, fn func(curBytes, tot
 	defer f.Close()
 
 	// Download the model, with callback. If an error occurs, the model is deleted again
-	if _, err := s.client.Get(ctx, &writer{Writer: f, fn: fn}, filepath.Base(abspath)); err != nil {
+	if _, err := s.client.Get(ctx, &writer{Writer: f, fn: fn}, filepath.Base(abspath), whisper.WithRemote(remote)); err != nil {
 		return nil, errors.Join(toError(err), os.Remove(f.Name()))
 	}
 

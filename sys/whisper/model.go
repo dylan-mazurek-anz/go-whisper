@@ -14,15 +14,19 @@ import (
 // HTTP client for downloading models, includes the root URL of the models
 type client struct {
 	http.Client
-
 	root *url.URL
+}
+
+// Download options
+type opts struct {
+	remote *url.URL
 }
 
 // The client interface is used to download models
 type Client interface {
 	// Get a file from the server, writing the response to the writer
 	// and returning the number of bytes copied
-	Get(ctx context.Context, w io.Writer, path string) (int64, error)
+	Get(context.Context, io.Writer, string, ...Opt) (int64, error)
 }
 
 // If the writer contains a Header method, it can be used to set the
@@ -43,6 +47,9 @@ type reader struct {
 	ctx context.Context
 }
 
+// Model download options
+type Opt func(*opts) error
+
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
@@ -61,9 +68,19 @@ func NewClient(abspath string) *client {
 // PUBLIC METHODS
 
 // Get a model from the server, writing the response to the writer
-func (c *client) Get(ctx context.Context, w io.Writer, path string) (int64, error) {
+func (c *client) Get(ctx context.Context, w io.Writer, path string, opt ...Opt) (int64, error) {
+	var o opts
+	for _, fn := range opt {
+		if err := fn(&o); err != nil {
+			return 0, err
+		}
+	}
+	if o.remote == nil {
+		o.remote = c.root
+	}
+
 	// Construct a URL
-	url := resolveUrl(c.root, path)
+	url := resolveUrl(o.remote, path)
 	if url == nil {
 		return 0, fmt.Errorf("invalid path: %s", path)
 	}
@@ -99,7 +116,7 @@ func (c *client) Get(ctx context.Context, w io.Writer, path string) (int64, erro
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// READER INTERFACE
+// PUBLIC METHODS - READER INTERFACE
 
 func (r *reader) Read(p []byte) (n int, err error) {
 	select {
@@ -107,6 +124,23 @@ func (r *reader) Read(p []byte) (n int, err error) {
 		return 0, r.ctx.Err()
 	default:
 		return r.Reader.Read(p)
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// PUBLIC METHODS - OPTIONS
+
+// Set the remote download URL
+func WithRemote(remote string) Opt {
+	return func(o *opts) error {
+		if remote == "" {
+			o.remote = nil
+		} else if u, err := url.Parse(remote); err != nil {
+			return fmt.Errorf("invalid remote URL: %w", err)
+		} else {
+			o.remote = u
+		}
+		return nil
 	}
 }
 

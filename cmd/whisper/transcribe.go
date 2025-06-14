@@ -25,7 +25,9 @@ type TranslateCmd struct {
 	Format   string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
 	Segments time.Duration `flag:"" help:"Segment size for reading audio file"`
 	Api      bool          `flag:"" help:"Use API for translation or transcription"`
-	Diarize  bool          `flag:"" help:"Diarize the transcription"`
+	//Temperature float64       `flag:"" help:"Temperature" default:"0.0"`
+	Diarize bool `flag:"" help:"Diarize the transcription"`
+	Stream  bool `flag:"" help:"Stream the transcription results"`
 }
 
 type TranscribeCmd struct {
@@ -38,21 +40,21 @@ type TranscribeCmd struct {
 
 func (cmd *TranscribeCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize)
+		return run_remote(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize, cmd.Stream)
 	} else {
-		return run_local(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false)
+		return run_local(app, cmd.Model, cmd.Path, cmd.Language, cmd.Format, cmd.Segments, false, cmd.Diarize)
 	}
 }
 
 func (cmd *TranslateCmd) Run(app *Globals) error {
 	if cmd.Api {
-		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize)
+		return run_remote(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize, cmd.Stream)
 	} else {
-		return run_local(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true)
+		return run_local(app, cmd.Model, cmd.Path, "", cmd.Format, cmd.Segments, true, cmd.Diarize)
 	}
 }
 
-func run_local(app *Globals, model, path, language, format string, segments time.Duration, translate bool) error {
+func run_local(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize bool) error {
 	// Get the model
 	model_ := app.service.GetModelById(model)
 	if model_ == nil {
@@ -77,7 +79,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	return app.service.WithModel(model_, func(taskctx *task.Context) error {
 		// Transcribe or Translate
 		taskctx.SetTranslate(translate)
-		taskctx.SetDiarize(false)
+		taskctx.SetDiarize(diarize)
 
 		// Set language
 		if language != "" {
@@ -113,7 +115,7 @@ func run_local(app *Globals, model, path, language, format string, segments time
 	})
 }
 
-func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize bool) error {
+func run_remote(app *Globals, model, path, language, format string, segments time.Duration, translate, diarize, stream bool) error {
 	// Open the audio file
 	f, err := os.Open(path)
 	if err != nil {
