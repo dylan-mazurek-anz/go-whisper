@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -18,42 +16,6 @@ import (
 	"github.com/mutablelogic/go-whisper/pkg/client/gowhisper"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
 	"github.com/mutablelogic/go-whisper/pkg/task"
-)
-
-///////////////////////////////////////////////////////////////////////////////
-// TYPES
-
-type reqTranscribe struct {
-	File        *multipart.FileHeader `json:"file"`
-	Model       string                `json:"model"`
-	Language    *string               `json:"language"`
-	Temperature *float32              `json:"temperature"`
-	SegmentSize *time.Duration        `json:"segment_size"`
-	ResponseFmt *string               `json:"response_format"`
-}
-
-type queryTranscribe struct {
-	Stream bool `json:"stream"`
-}
-
-type TaskType int
-type ResponseFormat string
-
-///////////////////////////////////////////////////////////////////////////////
-// GLOBALS
-
-const (
-	minSegmentSize     = 5 * time.Second
-	maxSegmentSize     = 10 * time.Minute
-	defaultSegmentSize = 5 * time.Minute
-)
-
-const (
-	FormatJson        ResponseFormat = "json"
-	FormatText        ResponseFormat = "text"
-	FormatSrt         ResponseFormat = "srt"
-	FormatVerboseJson ResponseFormat = "verbose_json"
-	FormatVtt         ResponseFormat = "vtt"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -73,17 +35,13 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	}
 
 	// Start a translation task
-	var response *schema.Transcription
+	var result *schema.Transcription
 	if err := service.WithModel(model, func(taskctx *task.Context) error {
 		taskctx.SetTranslate(false)
 		taskctx.SetDiarize(types.PtrBool(req.Diarize))
 
 		// Set language
-		lang := types.PtrString(req.Language)
-		if lang == "" {
-			lang = "auto"
-		}
-		if err := taskctx.SetLanguage(lang); err != nil {
+		if err := taskctx.SetLanguage(types.PtrString(req.Language)); err != nil {
 			return err
 		}
 
@@ -102,7 +60,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		}
 
 		// Set response
-		response = taskctx.Result()
+		result = taskctx.Result()
 
 		// Decode, resample and segment the audio file
 		return segment(ctx, w, taskctx, req.File.Body, func(seg *schema.Segment) {
@@ -112,8 +70,8 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		return httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 	}
 
-	// Return the original request
-	return httpresponse.JSON(w, http.StatusOK, 2, response)
+	// Response to client
+	return response(w, types.PtrString(req.Format), result)
 }
 
 func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.ResponseWriter, r *http.Request) error {
@@ -129,8 +87,44 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 		return httpresponse.Error(w, httpresponse.ErrNotFound, req.Model)
 	}
 
-	// Return the original request
-	return httpresponse.JSON(w, http.StatusOK, 2, req)
+	// Cannot diarize when translating
+	if req.Diarize != nil {
+		return httpresponse.Error(w, httpresponse.ErrBadRequest, "Cannot diarize when translating")
+	}
+
+	// Start a translation task
+	var result *schema.Transcription
+	if err := service.WithModel(model, func(taskctx *task.Context) error {
+		taskctx.SetTranslate(true)
+		taskctx.SetDiarize(types.PtrBool(req.Diarize))
+
+		// Set temperature
+		if req.Temperature != nil {
+			if err := taskctx.SetTemperature(types.PtrFloat64(req.Temperature)); err != nil {
+				return err
+			}
+		}
+
+		// Set prompt
+		if req.Prompt != nil {
+			if err := taskctx.SetPrompt(types.PtrString(req.Prompt)); err != nil {
+				return err
+			}
+		}
+
+		// Set response
+		result = taskctx.Result()
+
+		// Decode, resample and segment the audio file
+		return segment(ctx, w, taskctx, req.File.Body, func(seg *schema.Segment) {
+			// TODO - for streaming
+		})
+	}); err != nil {
+		return httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
+	}
+
+	// Response to client
+	return response(w, types.PtrString(req.Format), result)
 }
 
 func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
@@ -140,7 +134,7 @@ func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, 
 		return err
 	}
 
-	// Read segments and perform transcription
+	// Read segments and perform transcription or  translation
 	if err := segmenter.DecodeFloat32(ctx, func(ts time.Duration, buf []float32) error {
 		return taskctx.Transcribe(ctx, ts, buf, fn)
 	}); err != nil {
@@ -151,9 +145,43 @@ func segment(ctx context.Context, w http.ResponseWriter, taskctx *task.Context, 
 	return nil
 }
 
+const (
+	FormatJson        = "json"
+	FormatVerboseJson = "verbose_json"
+	FormatText        = "text"
+	FormatSrt         = "srt"
+	FormatVtt         = "vtt"
+)
+
+func response(w http.ResponseWriter, format string, response *schema.Transcription) error {
+	switch strings.ToLower(format) {
+	case FormatJson, FormatVerboseJson:
+		return httpresponse.JSON(w, http.StatusOK, 2, response)
+	case FormatText, "":
+		return httpresponse.Write(w, http.StatusOK, types.ContentTypeTextPlain, func(w io.Writer) (int, error) {
+			return w.Write([]byte(response.Text))
+		})
+	case FormatSrt:
+		return httpresponse.Write(w, http.StatusOK, "application/x-subrip", func(w io.Writer) (int, error) {
+			for _, seg := range response.Segments {
+				task.WriteSegmentSrt(w, seg)
+			}
+			return 0, nil
+		})
+	case FormatVtt:
+		return httpresponse.Write(w, http.StatusOK, "text/vtt", func(w io.Writer) (int, error) {
+			for _, seg := range response.Segments {
+				task.WriteSegmentVtt(w, seg)
+			}
+			return 0, nil
+		})
+	}
+
+	// Error - invalid format
+	return httpresponse.ErrBadRequest.Withf("Invalid response format: %q", format)
+}
+
 /*
-
-
 	// Create a text stream
 	var stream *httpresponse.TextStream
 	if query.Stream {
@@ -372,65 +400,3 @@ func TranscribeStream(ctx context.Context, service *whisper.Whisper, w http.Resp
 	}
 }
 */
-
-///////////////////////////////////////////////////////////////////////////////
-// PRIVATE METHODS
-
-func (r reqTranscribe) Validate() error {
-	if r.Model == "" {
-		return fmt.Errorf("model is required")
-	}
-	if r.File == nil {
-		return fmt.Errorf("file is required")
-	}
-	if r.ResponseFmt != nil {
-		switch *r.ResponseFmt {
-		case "json", "text", "srt", "verbose_json", "vtt":
-			break
-		default:
-			return fmt.Errorf("response_format must be one of: json, text, srt, verbose_json, vtt")
-		}
-	}
-	return nil
-}
-func (r reqTranscribe) ResponseFormat() ResponseFormat {
-	if r.ResponseFmt == nil {
-		return FormatJson
-	}
-	switch strings.ToLower(*r.ResponseFmt) {
-	case "json":
-		return FormatJson
-	case "text":
-		return FormatText
-	case "srt":
-		return FormatSrt
-	case "verbose_json":
-		return FormatVerboseJson
-	case "vtt":
-		return FormatVtt
-	}
-	return FormatJson
-}
-
-func (r reqTranscribe) OutputSegments() bool {
-	// We want to output segments if the response format is  "srt", "verbose_json", "vtt"
-	switch r.ResponseFormat() {
-	case FormatSrt, FormatVerboseJson, FormatVtt:
-		return true
-	default:
-		return false
-	}
-}
-
-func (r reqTranscribe) SegmentDur() time.Duration {
-	if r.SegmentSize == nil {
-		return defaultSegmentSize
-	}
-	if *r.SegmentSize < minSegmentSize {
-		return minSegmentSize
-	}
-	if *r.SegmentSize > maxSegmentSize {
-		return maxSegmentSize
-	}
-	return *r.SegmentSize
-}
