@@ -11,7 +11,7 @@ ARG ARCH
 ARG OS
 
 RUN apt-get -y update \
- && apt-get -y install build-essential libgomp1 cmake git pkg-config curl \
+ && apt-get -y install ca-certificates build-essential libgomp1 cmake git pkg-config curl \
  && apt-get -y install libfreetype6-dev libmp3lame-dev libopus-dev libvorbis-dev libvpx-dev libx264-dev libdav1d-dev
 
 # Install go
@@ -28,7 +28,7 @@ RUN make -j$(nproc)
 # Setup runtime container
 FROM ${BASE_RUN_CONTAINER} AS runtime
 RUN apt-get -y update \
- && apt-get -y install libgomp1 \
+ && apt-get -y install ca-certificates libgomp1 \
  && apt-get -y install libfreetype6 libmp3lame0 libopus0 libvorbis0a libvpx-dev x264 dav1d
 
 # Copy built whisper binary and entrypoint script
