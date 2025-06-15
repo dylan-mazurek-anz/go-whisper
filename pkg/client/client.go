@@ -111,6 +111,34 @@ func (c *Client) ListModels(ctx context.Context) ([]schema.Model, error) {
 	return result, nil
 }
 
+// Download model for use in transcription and translation
+func (c *Client) DownloadModel(ctx context.Context, path string, fn func(cur, total uint64)) (*schema.Model, error) {
+	switch {
+	case c.gowhisper != nil:
+		model, err := c.gowhisper.DownloadModel(ctx, path, fn)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return success
+		return model, nil
+	}
+
+	// Return error
+	return nil, httpresponse.ErrNotImplemented.Withf("downloading is not supported")
+}
+
+// Delete existing model
+func (c *Client) DeleteModel(ctx context.Context, model string) error {
+	switch {
+	case c.gowhisper != nil:
+		return c.gowhisper.DeleteModel(ctx, model)
+	}
+
+	// Return error
+	return httpresponse.ErrNotImplemented.Withf("delete is not supported")
+}
+
 // Transcribe performs a transcription request in the language of the speech
 func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
 	var response *schema.Transcription
@@ -181,71 +209,6 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 }
 
 /*
-
-func (c *Client) DeleteModel(ctx context.Context, model string) error {
-	return c.DoWithContext(ctx, client.MethodDelete, nil, client.OptPath("models", model))
-}
-
-func (c *Client) DownloadModel(ctx context.Context, path string, fn func(status string, cur, total int64)) (schema.Model, error) {
-	var req struct {
-		Path string `json:"path"`
-	}
-	type resp struct {
-		schema.Model
-		Status    string `json:"status"`
-		Total     int64  `json:"total,omitempty"`
-		Completed int64  `json:"completed,omitempty"`
-	}
-
-	// stream=true for progress reports
-	query := url.Values{}
-	if fn != nil {
-		query.Set("stream", "true")
-	}
-
-	// Download the model
-	req.Path = path
-
-	var r resp
-	if payload, err := client.NewJSONRequest(req); err != nil {
-		return schema.Model{}, err
-	} else if err := c.DoWithContext(ctx, payload, &r,
-		client.OptPath("models"),
-		client.OptQuery(query),
-		client.OptNoTimeout(),
-		client.OptTextStreamCallback(func(evt client.TextStreamEvent) error {
-			switch evt.Event {
-			case "progress":
-				var r resp
-				if err := evt.Json(&r); err != nil {
-					return err
-				} else {
-					fn(r.Status, r.Completed, r.Total)
-				}
-			case "error":
-				var errstr string
-				if evt.Event == "error" {
-					if err := evt.Json(&errstr); err != nil {
-						return err
-					} else {
-						return errors.New(errstr)
-					}
-				}
-			case "ok":
-				if err := evt.Json(&r); err != nil {
-					return err
-				}
-			}
-			return nil
-		}),
-	); err != nil {
-		return schema.Model{}, err
-	}
-
-	// Return success
-	return r.Model, nil
-}
-
 func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
 	var request struct {
 		File  multipart.File `json:"file"`

@@ -181,7 +181,9 @@ func (s *Store) Delete(id string) error {
 func (s *Store) Download(ctx context.Context, path string, fn func(curBytes, totalBytes uint64)) (*schema.Model, error) {
 	var remote string
 	if u, err := url.Parse(path); err == nil {
-		remote = u.String()
+		if u.Scheme != "" {
+			remote = u.String()
+		}
 		path = u.Path
 	}
 
