@@ -16,7 +16,7 @@ ARG ARCH
 ARG OS
 
 RUN apt-get -y update \
- && apt-get -y install ca-certificates build-essential libgomp1 cmake git pkg-config curl \
+ && apt-get -y install ca-certificates build-essential libgomp1 cmake git pkg-config nasm curl \
  && apt-get -y install libfreetype6-dev libmp3lame-dev libopus-dev libvorbis-dev libvpx-dev libx264-dev libdav1d-dev
 
 # Install go
