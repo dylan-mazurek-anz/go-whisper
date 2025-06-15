@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	goclient "github.com/mutablelogic/go-client"
 	segmenter "github.com/mutablelogic/go-media/pkg/segmenter"
 	httpresponse "github.com/mutablelogic/go-server/pkg/httpresponse"
-	"github.com/mutablelogic/go-server/pkg/types"
+	types "github.com/mutablelogic/go-server/pkg/types"
 	whisper "github.com/mutablelogic/go-whisper"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
 	schema "github.com/mutablelogic/go-whisper/pkg/schema"
@@ -109,19 +110,19 @@ func (cmd *TranslateCmd) run_local(app *Globals, translate bool) error {
 				var buf bytes.Buffer
 				switch cmd.Format {
 				case "json", "verbose_json":
-					app.writer.Writeln(segment)
+					fmt.Println(segment)
 				case "srt":
 					task.WriteSegmentSrt(&buf, segment)
-					app.writer.Writeln(buf.String())
+					fmt.Println(buf.String())
 				case "vtt":
 					if segment.Id == 0 {
-						app.writer.Writeln("WEBVTT" + "\n")
+						fmt.Println("WEBVTT" + "\n")
 					}
 					task.WriteSegmentVtt(&buf, segment)
-					app.writer.Writeln(buf.String())
+					fmt.Println(buf.String())
 				case "text":
 					task.WriteSegmentText(&buf, segment)
-					app.writer.Writeln(buf.String())
+					fmt.Println(buf.String())
 				}
 			})
 		}); err != nil {
@@ -206,16 +207,16 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 			var buf bytes.Buffer
 			switch cmd.Format {
 			case "json", "verbose_json":
-				app.writer.Writeln(segment)
+				fmt.Println(segment)
 			case "srt":
 				segment.WriteSRT(&buf, ts)
-				app.writer.Writeln(buf.String())
+				fmt.Println(buf.String())
 			case "vtt":
 				segment.WriteVTT(&buf, ts)
-				app.writer.Writeln(buf.String())
+				fmt.Println(buf.String())
 			case "text":
 				segment.WriteText(&buf)
-				app.writer.Writeln(buf.String())
+				fmt.Println(buf.String())
 			}
 		}
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"runtime"
 
 	// Packages
@@ -33,5 +35,11 @@ func (cmd *VersionCmd) Run(ctx *Globals) error {
 	metadata = append(metadata, kv{"go version", runtime.Version()})
 	metadata = append(metadata, kv{"os", runtime.GOOS + "/" + runtime.GOARCH})
 
-	return ctx.writer.Write(metadata)
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data))
+	return nil
 }

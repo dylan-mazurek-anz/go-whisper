@@ -1,11 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
-
 	// Packages
-	"github.com/djthorpe/go-tablewriter"
 )
 
 type DownloadCmd struct {
@@ -24,5 +23,6 @@ func (cmd *DownloadCmd) Run(ctx *Globals) error {
 	if err != nil {
 		return err
 	}
-	return ctx.writer.Write(model, tablewriter.OptHeader())
+	fmt.Println(model)
+	return nil
 }

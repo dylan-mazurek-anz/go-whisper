@@ -1,10 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"os"
 
 	// Packages
-	tablewriter "github.com/djthorpe/go-tablewriter"
 	goclient "github.com/mutablelogic/go-client"
 	httpresponse "github.com/mutablelogic/go-server/pkg/httpresponse"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
@@ -27,7 +28,7 @@ func run_local_models(app *Globals) error {
 	if len(models) == 0 {
 		return httpresponse.ErrNotFound.With("no models found")
 	} else {
-		return app.writer.Write(models, tablewriter.OptHeader())
+		return list_models(os.Stdout, models)
 	}
 }
 
@@ -49,6 +50,12 @@ func run_remote_models(app *Globals) error {
 	} else if len(models) == 0 {
 		return httpresponse.ErrNotFound.With("no models found")
 	} else {
-		return app.writer.Write(models, tablewriter.OptHeader())
+		return list_models(os.Stdout, models)
 	}
+}
+
+func list_models(w io.Writer, models any) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(models)
 }

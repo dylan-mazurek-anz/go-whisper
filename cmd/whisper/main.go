@@ -10,7 +10,6 @@ import (
 
 	// Packages
 	kong "github.com/alecthomas/kong"
-	tablewriter "github.com/djthorpe/go-tablewriter"
 	whisper "github.com/mutablelogic/go-whisper"
 )
 
@@ -20,7 +19,6 @@ type Globals struct {
 	Dir   string `name:"dir" help:"Path to model store, uses ${WHISPER_DIR} " default:"${WHISPER_DIR}"`
 
 	// Writer, service and context
-	writer  *tablewriter.Writer
 	service *whisper.Whisper
 	ctx     context.Context
 }
@@ -87,10 +85,6 @@ func main() {
 		cli.Globals.service = service
 	}
 	defer service.Close()
-
-	// Create a tablewriter object with text output
-	writer := tablewriter.New(os.Stdout, tablewriter.OptOutputText())
-	cli.Globals.writer = writer
 
 	// Create a context
 	var cancel context.CancelFunc
