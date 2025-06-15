@@ -98,10 +98,8 @@ For more detailed API documentation, see the [API Reference](doc/API.md).
 
 If you are building a Docker image, you just need make and Docker installed:
 
-- `DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container with the
-  server binary for CUDA, tagged to a specific registry
-- `OS=linux GGML_CUDA=0 DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container
-  for Linux, with the server binary without CUDA, tagged to a specific registry
+- `GGML_CUDA=1 DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container with the server binary for CUDA, tagged to a specific registry
+- `OS=linux GGML_CUDA=0 DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container for Linux, with the server binary without CUDA, tagged to a specific registry
 
 ### From Source
 
@@ -110,15 +108,12 @@ directory and have the following dependencies met:
 
 - Recent version of Go (ie, 1.22+)
 - C++ compiler and cmake
-- FFmpeg 6.1 libraries (see the [build documentation](doc/build.md) for more information)
 - For CUDA, you'll need the CUDA toolkit installed including the `nvcc` compiler
 
 The following `Makefile` targets can be used:
 
-- `make server` - creates the server binary, and places it in the `build` directory. Should
-  link to Metal on macOS
-- `GGML_CUDA=1 make server` - creates the server binary linked to CUDA, and places it
-  in the `build` directory. Should work for amd64 and arm64 (Jetson) platforms
+- `OS=linux make whisper` - creates the server binary, and places it in the `build` directory. Should link to Metal on macOS
+- `OS=linux GGML_CUDA=1 make whisper` - creates the server binary linked to CUDA, and places it in the `build` directory. Should work for amd64 and arm64 (Jetson) platforms
 
 See all the other targets in the `Makefile` for more information.
 
