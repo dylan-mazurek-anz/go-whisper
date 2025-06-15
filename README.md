@@ -109,13 +109,17 @@ directory and have the following dependencies met:
 - Recent version of Go (ie, 1.22+)
 - C++ compiler and cmake
 - For CUDA, you'll need the CUDA toolkit installed including the `nvcc` compiler
+- For Vulkan, you'll need the Vulkan SDK installed
+  - For the Rasperry Pi, install the following additional packages first: `sudo apt install libvulkan-dev libvulkan1 mesa-vulkan-drivers glslc`
+- For Metal, you'll need Xcode installed on macOS
 
 The following `Makefile` targets can be used:
 
-- `OS=linux make whisper` - creates the server binary, and places it in the `build` directory. Should link to Metal on macOS
-- `OS=linux GGML_CUDA=1 make whisper` - creates the server binary linked to CUDA, and places it in the `build` directory. Should work for amd64 and arm64 (Jetson) platforms
+- `make whisper` - creates the server binary, and places it in the `build` directory. Should link to Metal on macOS
+- `GGML_CUDA=1 make whisper` - creates the server binary linked to CUDA, and places it in the `build` directory. Should work for amd64 and arm64 (Jetson) platforms
+- `GGML_VULKAN=1 make whisper` - creates the server binary linked to Vulkan, and places it in the `build` directory. 
 
-See all the other targets in the `Makefile` for more information.
+See all the other targets and variations in the `Makefile` for more information.
 
 ## Command Line Usage
 
