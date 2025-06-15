@@ -113,11 +113,11 @@ repository for more information:
 
 > __go-whisper__\
 > [https://github.com/mutablelogic/go-whisper/](https://github.com/mutablelogic/go-whisper/)\
-> Copyright (c) 2023-2024 David Thorpe, All rights reserved.
+> Copyright (c) 2023-2025 David Thorpe, All rights reserved.
 >
 > __whisper.cpp__\
 > [https://github.com/ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp)\
-> Copyright (c) 2023-2024 The ggml authors
+> Copyright (c) 2023-2025 The ggml authors
 
 This software links to static libraries of [whisper.cpp](https://github.com/ggerganov/whisper.cpp) licensed under
 the [MIT License](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).

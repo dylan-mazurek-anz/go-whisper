@@ -7,7 +7,7 @@ if [ -z "$1" ]; then
     install -d -m 0755 /data || exit 1
 
     # Run as a server
-    /usr/local/bin/whisper server --dir /data --listen :80 --endpoint /v1
+    /usr/local/bin/whisper server --listen :80
 else
-    exec "$@"
+    exec /usr/local/bin/whisper "$@"
 fi

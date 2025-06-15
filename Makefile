@@ -99,6 +99,7 @@ docker: docker-dep submodule
 		--build-arg SOURCE=${BUILD_MODULE} \
 		--build-arg VERSION=${VERSION} \
 		--build-arg GGML_CUDA=${GGML_CUDA} \
+		--build-arg GGML_VULKAN=${GGML_VULKAN} \
 		-f ${DOCKER_FILE} .
 
 # Push docker container
