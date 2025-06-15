@@ -176,8 +176,6 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 		})
 	}
 
-	// TODO: Set the initial prompt tokens from any previous transcription call
-
 	// Perform the transcription
 	if err := whisper.Whisper_full(task.whisper, task.params, samples); err != nil {
 		if ctx.Err() != nil {
@@ -187,6 +185,15 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 		}
 	}
 
+	// Set the task, language and duration
+	if task.params.Translate() {
+		task.result.Task = "translate"
+	} else {
+		task.result.Task = "transcribe"
+	}
+	task.result.Language = whisper.Whisper_lang_str_full(task.whisper.DefaultLangId())
+	task.result.Duration = schema.Timestamp(float64(len(samples)) * float64(time.Second) / float64(whisper.SampleRate))
+
 	// Remove the callbacks
 	task.params.SetAbortCallback(task.whisper, nil)
 	task.params.SetSegmentCallback(task.whisper, nil)
@@ -195,6 +202,21 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 	task.appendResult(ts, fn != nil)
 
 	// Return success
+	return nil
+}
+
+// Set temperature for sampling
+func (ctx *Context) SetTemperature(v float64) error {
+	if v < 0 || v > 1 {
+		return ErrBadParameter.Withf("temperature must be between 0 and 1, got %f", v)
+	}
+	ctx.params.SetTemperature(float32(v))
+	return nil
+}
+
+// Set initial prompt tokens for the transcription
+func (ctx *Context) SetPrompt(prompt string) error {
+	ctx.params.SetPrompt(prompt)
 	return nil
 }
 

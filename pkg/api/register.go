@@ -2,25 +2,31 @@ package api
 
 import (
 	"net/http"
-	"path/filepath"
+	"os"
 
 	// Packages
 	"github.com/mutablelogic/go-server/pkg/httpresponse"
+	"github.com/mutablelogic/go-server/pkg/logger"
+	"github.com/mutablelogic/go-server/pkg/types"
 	"github.com/mutablelogic/go-whisper"
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
 )
 
 /////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
-func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux) *http.ServeMux {
+func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux, debug bool) *http.ServeMux {
 	// Create a new router
 	if mux == nil {
 		mux = http.NewServeMux()
 	}
 
+	// Create a logger
+	logger := logger.New(os.Stderr, logger.Term, debug)
+
 	// Health: GET /v1/health
 	//   returns an empty OK response
-	mux.HandleFunc(joinPath(base, "health"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(types.JoinPath(base, "health"), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
@@ -29,14 +35,14 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
-	})
+	}))
 
 	// List Models: GET /v1/models
 	//   returns available models
 	// Download Model: POST /v1/models?stream={bool}
 	//   downloads a model from the server
 	//   if stream is true then progress is streamed back to the client
-	mux.HandleFunc(joinPath(base, "models"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(types.JoinPath(base, "models"), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
@@ -47,13 +53,13 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
-	})
+	}))
 
 	// Get: GET /v1/models/{id}
 	//   returns an existing model
 	// Delete: DELETE /v1/models/{id}
 	//   deletes an existing model
-	mux.HandleFunc(joinPath(base, "models/{id}"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(types.JoinPath(base, "models/{id}"), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		id := r.PathValue("id")
@@ -65,49 +71,34 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
-	})
+	}))
 
 	// Translate: POST /v1/audio/translations
-	//   Translates audio into english or another language  - language parameter should be set to the
-	//   destination language of the audio. Will default to english if not set.
-	mux.HandleFunc(joinPath(base, "audio/translations"), func(w http.ResponseWriter, r *http.Request) {
+	//   Translates audio into english
+	mux.HandleFunc(types.JoinPath(base, openai.TranslatePath), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
 		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Translate)
+			TranslateFile(r.Context(), whisper, w, r)
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
-	})
+	}))
 
 	// Transcribe: POST /v1/audio/transcriptions
 	//   Transcribes audio into the input language - language parameter should be set to the source
 	//   language of the audio
-	mux.HandleFunc(joinPath(base, "audio/transcriptions"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(types.JoinPath(base, openai.TranscribePath), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		switch r.Method {
 		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Transcribe)
+			TranscribeFile(r.Context(), whisper, w, r)
 		default:
 			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
 		}
-	})
-
-	// Diarize: POST /v1/audio/diarize
-	//   Transcribes audio into the input language - language parameter should be set to the source
-	//   language of the audio. Output speaker parts.
-	mux.HandleFunc(joinPath(base, "audio/diarize"), func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
-		switch r.Method {
-		case http.MethodPost:
-			TranscribeFile(r.Context(), whisper, w, r, Diarize)
-		default:
-			httpresponse.Error(w, httpresponse.Err(http.StatusMethodNotAllowed), r.Method)
-		}
-	})
+	}))
 
 	// Transcribe: POST /v1/audio/transcriptions/{model-id}
 	//   Transcribes streamed media into the input language
@@ -126,11 +117,4 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 
 	// Return mux
 	return mux
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// PRIVATE METHODS
-
-func joinPath(base, rel string) string {
-	return filepath.Join(base, rel)
 }

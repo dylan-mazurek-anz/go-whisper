@@ -48,7 +48,7 @@ ifeq ($(GGML_VULKAN),1)
 endif
 
 # Targets
-all: whisper api
+all: whisper
 
 # Generate the pkg-config files
 generate: mkdir go-tidy libwhisper
@@ -99,6 +99,7 @@ docker: docker-dep submodule
 		--build-arg SOURCE=${BUILD_MODULE} \
 		--build-arg VERSION=${VERSION} \
 		--build-arg GGML_CUDA=${GGML_CUDA} \
+		--build-arg GGML_VULKAN=${GGML_VULKAN} \
 		-f ${DOCKER_FILE} .
 
 # Push docker container

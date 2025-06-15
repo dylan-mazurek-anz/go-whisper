@@ -1,0 +1,22 @@
+package gowhisper
+
+import (
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+)
+
+/////////////////////////////////////////////////////////////////////////////////
+// TYPES
+
+type TranslationRequest struct {
+	openai.TranslationRequest
+	Diarize *bool `json:"diarize,omitempty"`
+}
+
+type TranscriptionRequest struct {
+	openai.TranscriptionRequest
+	Diarize *bool `json:"diarize,omitempty"`
+}
+
+type TranscriptionResponse struct {
+	openai.TranscriptionResponse
+}

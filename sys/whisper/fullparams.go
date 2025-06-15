@@ -2,6 +2,7 @@ package whisper
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"unsafe"
 )
@@ -14,6 +15,7 @@ import (
 #include <whisper.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 extern void whisper_progress_cb_ex(struct whisper_context * ctx, struct whisper_state * state, int progress, void * user_data);
 extern void whisper_segment_cb_ex(struct whisper_context * ctx, struct whisper_state * state, int n, void * user_data);
@@ -69,22 +71,34 @@ var (
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
+// Create a new full parameters with the default values for the specified sampling strategy
 func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	params := (FullParams)(C.whisper_full_default_params((C.enum_whisper_sampling_strategy)(strategy)))
 	C.set_callbacks((*C.struct_whisper_full_params)(&params), C.bool(true))
 
+	// TODO: Check these
 	params.entropy_thold = 2.40
 	params.greedy.best_of = 5
 	params.beam_search.beam_size = 5
-	params.audio_ctx = 0
-	params.split_on_word = C.bool(false)
 	params.entropy_thold = 2.40
 	params.logprob_thold = -1.0
 	params.no_speech_thold = 0.60
-	params.temperature = 0.0
 	params.temperature_inc = 0.2
 
+	// Return success
 	return params
+}
+
+// Free all memory allocated by the full parameters
+func (ctx *FullParams) Close() error {
+	if ctx == nil {
+		return nil
+	}
+	if ctx.initial_prompt != nil {
+		C.free(unsafe.Pointer(ctx.initial_prompt))
+		ctx.initial_prompt = nil
+	}
+	return nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -279,6 +293,20 @@ func (c *FullParams) Language() string {
 		return "auto"
 	}
 	return v
+}
+
+func (c *FullParams) SetTemperature(v float32) {
+	fmt.Println("Setting temperature to:", v)
+	c.temperature = (C.float)(v)
+}
+
+func (c *FullParams) Temperature() float32 {
+	return float32(c.temperature)
+}
+
+func (c *FullParams) SetPrompt(v string) {
+	// Note: C.CString requires a C.free call later, but we don't do it here
+	c.initial_prompt = C.CString(v)
 }
 
 func (c *FullParams) SetProgressCallback(ctx *Context, cb ProgressCallback) {

@@ -1,6 +1,8 @@
 package whisper
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 ///////////////////////////////////////////////////////////////////////////////
 // CGO
@@ -84,6 +86,10 @@ func Whisper_is_multilingual(ctx *Context) bool {
 // Not thread safe for same context
 // Uses the specified decoding strategy to obtain the text.
 func Whisper_full(ctx *Context, params FullParams, samples []float32) error {
+	// Free any allocated memory in params after use
+	defer params.Close()
+
+	// Run the model
 	if C.whisper_full((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples))) != 0 {
 		return ErrTranscriptionFailed
 	}
