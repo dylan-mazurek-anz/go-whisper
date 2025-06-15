@@ -1,23 +1,41 @@
 # go-whisper
 
-Speech-to-Text in golang. This is an early development version.
+[![Go Reference](https://pkg.go.dev/badge/github.com/mutablelogic/go-whisper.svg)](https://pkg.go.dev/github.com/mutablelogic/go-whisper)
+[![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
 
-* `cmd` contains an OpenAI-API compatible service
-* `pkg` contains the `whisper` service and client
-* `sys` contains the `whisper` bindings to the `whisper.cpp` library
-* `third_party` is a submodule for the whisper.cpp source
+Speech-to-Text in golang using [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
 
-## Running
+## Features
 
-You can either run the whisper service as a CLI command or in a docker container.
-There are docker images for arm64 and amd64 (Intel). The arm64 image is built for
-Jetson GPU support specifically, but it will also run on Raspberry Pi's.
+- **Transcription & Translation**: Easily transcribe audio files and translate them to English
+- **Providers**: Use models from OpenAI, ElevenLabs, and HuggingFace
+- **Command Line Interface**: Simple CLI for transcription and managing models
+- **HTTP API Server**: OpenAPI-compatible server with streaming support
+- **Model Management**: Download, list, and delete models
+- **GPU Acceleration**: Support for CUDA, Vulkan, and Metal (macOS) acceleration
+- **Docker Support**: Pre-built images for amd64 and arm64 architectures
 
-In order to utilize a NVIDIA GPU, you'll need to install the
+## Project Structure
+
+- `cmd` contains the command-line tool, which can also be run as an OpenAPI-compatible HTTP server
+- `pkg` contains the `whisper` service and client
+- `sys` contains the `whisper` bindings to the `whisper.cpp` library
+- `third_party` is a submodule for the whisper.cpp source, and ffmpeg bindings
+
+The following sections describe how to use whisper on the command-line, run it as a service,
+download a model, run the server, and build the project.
+
+## Using Docker
+
+You can run whisper as a CLI command or in a Docker container.
+There are Docker images for arm64 and amd64 (Intel). There is support for CUDA and Vulkan, but
+some features are still under development.
+
+In order to utilize an NVIDIA GPU, you'll need to install the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) first.
 
-A docker volume should be created called "whisper" can be used for storing the Whisper language
-models. You can see which models are available to download locally [here](https://huggingface.co/ggerganov/whisper.cpp).
+A Docker volume called "whisper" can be used for storing the Whisper language
+models. You can see which models are available to download from the [HuggingFace whisper.cpp repository](https://huggingface.co/ggerganov/whisper.cpp).
 
 The following command will run the server on port 8080 for an NVIDIA GPU:
 
@@ -26,98 +44,152 @@ docker run \
   --name whisper-server --rm \
   --runtime nvidia --gpus all \ # When using a NVIDIA GPU
   -v whisper:/data -p 8080:80 \
-  ghcr.io/mutablelogic/go-whisper:latest
+  ghcr.io/mutablelogic/go-whisper:latest-cuda
 ```
 
-The API is then
-available at `http://localhost:8080/v1` and it generally conforms to the
-[OpenAI API](https://platform.openai.com/docs/api-reference/audio) spec.
+The API is then available at `http://localhost:8080/api/v1` and it generally conforms to the [OpenAI API](https://platform.openai.com/docs/api-reference/audio) spec.
 
-### Sample Usage
+## API Examples
 
-In order to download a model, you can use the following command (for example):
+The API is available through the server and conforms generally to the OpenAI API spec. Here are some common usage examples:
+
+### Download a model
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"Path" : "ggml-medium-q5_0.bin" }' localhost:8080/v1/models\?stream=true
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"path": "ggml-medium-q5_0.bin"}' \
+  localhost:8080/v1/models?stream=true
 ```
 
-To list the models available, you can use the following command:
+### List available models
 
 ```bash
 curl -X GET localhost:8080/v1/models
 ```
 
-To delete a model, you can use the following command:
+### Delete a model
 
 ```bash
 curl -X DELETE localhost:8080/v1/models/ggml-medium-q5_0
 ```
 
-To transcribe a media file into it's original language, you can use the following command:
+### Transcribe an audio file
 
 ```bash
-curl -F model=ggml-medium-q5_0 -F file=@samples/jfk.wav localhost:8080/v1/audio/transcriptions\?stream=true
+curl -F model=ggml-medium-q5_0 \
+  -F file=@samples/jfk.wav \
+  localhost:8080/v1/audio/transcriptions?stream=true
 ```
 
-To translate a media file into a different language, you can use the following command:
+### Translate an audio file to English
 
 ```bash
-curl -F model=ggml-medium-q5_0 -F file=@samples/de-podcast.wav -F language=en localhost:8080/v1/audio/translations\?stream=true
+curl -F model=ggml-medium-q5_0 \
+  -F file=@samples/de-podcast.wav \
+  -F language=en \
+  localhost:8080/v1/audio/translations?stream=true
 ```
 
-There's more information on the API [here](doc/API.md).
+For more detailed API documentation, see the [API Reference](doc/API.md).
 
 ## Building
 
-If you are building a docker image, you just need make and docker installed:
+### Docker Images
 
-* `DOCKER_REGISTRY=docker.io/user make docker` - builds a docker container with the
+If you are building a Docker image, you just need make and Docker installed:
+
+- `DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container with the
   server binary for CUDA, tagged to a specific registry
-* `OS=linux GGML_CUDA=0 DOCKER_REGISTRY=docker.io/user make docker` - builds a docker container
+- `OS=linux GGML_CUDA=0 DOCKER_REGISTRY=docker.io/user make docker` - builds a Docker container
   for Linux, with the server binary without CUDA, tagged to a specific registry
 
-If you want to build the server without docker, you can use the `Makefile` in the root 
+### From Source
+
+If you want to build the server without Docker, you can use the `Makefile` in the root
 directory and have the following dependencies met:
 
-* Recent version of Go (ie, 1.22+)
-* C++ compiler and cmake
-* FFmpeg 6.1 libraries (see [here](doc/build.md) for more information)
-* For CUDA, you'll need the CUDA toolkit installed including the `nvcc` compiler
+- Recent version of Go (ie, 1.22+)
+- C++ compiler and cmake
+- FFmpeg 6.1 libraries (see the [build documentation](doc/build.md) for more information)
+- For CUDA, you'll need the CUDA toolkit installed including the `nvcc` compiler
 
 The following `Makefile` targets can be used:
 
-* `make server` - creates the server binary, and places it in the `build` directory. Should
+- `make server` - creates the server binary, and places it in the `build` directory. Should
   link to Metal on macOS
-* `GGML_CUDA=1 make server` - creates the server binary linked to CUDA, and places it
+- `GGML_CUDA=1 make server` - creates the server binary linked to CUDA, and places it
   in the `build` directory. Should work for amd64 and arm64 (Jetson) platforms
 
 See all the other targets in the `Makefile` for more information.
 
-## Developing
+## Command Line Usage
 
-TODO
+The `whisper` command-line tool can be built with `make whisper` and provides various functionalities.
 
-## Status
+```bash
+# List available models
+whisper models
 
-Still in development. See this [issue](https://github.com/mutablelogic/go-whisper/issues/1) for
+# Download a model
+whisper download ggml-medium-q5_0.bin
+
+# Delete a model
+whisper delete ggml-medium-q5_0
+
+# Transcribe an audio file
+whisper transcribe ggml-medium-q5_0 samples/jfk.wav
+
+# Translate an audio file to English
+whisper translate ggml-medium-q5_0 samples/de-podcast.wav
+
+# Run the whisper server
+whisper server --listen localhost:8080
+```
+
+You can also access transcription and translation functionalities from OpenAI-compatible HTTP endpoints, and ElevenLabs-compatible endpoints:
+
+- Set `OPENAI_API_KEY` environment variable to your OpenAI API key to use the OpenAI-compatible endpoints.
+- Set `ELEVENLABS_API_KEY` environment variable to your ElevenLabs API key
+- Set `WHISPER_URL` environment variable to  the URL of the whisper server to use the OpenAI-compatible endpoints.
+
+```bash
+# List available remote models (including OpenAI and ElevenLabs models)
+whisper models --remote
+
+# Download a model
+whisper download ggml-medium-q5_0.bin --remote
+
+# Transcribe an audio file for subtitles (ElevenLabs)
+whisper transcribe scribe_v1 samples/jfk.wav --format srt --diarize --remote
+
+# Translate an audio file to English (OpenAI)
+whisper translate  whisper-1 samples/de-podcast.wav  --remote
+```
+
+## Development Status
+
+This project is currently in development and subject to change. See this [GitHub issue](https://github.com/mutablelogic/go-whisper/issues/1) for
 remaining tasks to be completed.
 
-## Contributing & Distribution
+## Contributing & License
 
-__This module is currently in development and subject to change.__
-
-Please do file feature requests and bugs [here](https://github.com/mutablelogic/go-whisper/issues).
+Please file feature requests and bugs in the [GitHub issues](https://github.com/mutablelogic/go-whisper/issues).
 The license is Apache 2 so feel free to redistribute. Redistributions in either source
 code or binary form must reproduce the copyright notice, and please link back to this
 repository for more information:
 
-> __go-whisper__\
+> **go-whisper**\
 > [https://github.com/mutablelogic/go-whisper/](https://github.com/mutablelogic/go-whisper/)\
-> Copyright (c) 2023-2025 David Thorpe, All rights reserved.
+> Copyright (c) David Thorpe, All rights reserved.
 >
-> __whisper.cpp__\
+> **whisper.cpp**\
 > [https://github.com/ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp)\
-> Copyright (c) 2023-2025 The ggml authors
+> Copyright (c) The ggml authors
+>
+> **ffmpeg**\
+> [https://ffmpeg.org/](https://ffmpeg.org/)\
+> Copyright (c) the FFmpeg developers
 
 This software links to static libraries of [whisper.cpp](https://github.com/ggerganov/whisper.cpp) licensed under
-the [MIT License](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).
+the [MIT License](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html). This software links to static libraries of ffmpeg licensed under the
+[LGPL 2.1 License](http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html). 
