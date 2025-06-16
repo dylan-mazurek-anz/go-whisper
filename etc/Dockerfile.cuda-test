@@ -66,8 +66,8 @@ RUN apt-get -y update \
  && apt-get -y install libfreetype6 libmp3lame0 libopus0 libvorbis0a libvpx-dev x264 dav1d
 
 # Copy built whisper binary and entrypoint script
-COPY --from=buildcuda --chmod=755 /app/build/whisper-cuda /usr/local/bin
-COPY --from=buildcpu --chmod=755 /app/build/whisper-cpu /usr/local/bin
+COPY --from=buildcuda --chmod=755 /app/build/whisper /usr/local/bin/whisper-cuda
+COPY --from=buildcpu --chmod=755 /app/build/whisper /usr/local/bin
 COPY --chmod=755 etc/entrypoint.sh .
 
 # Container environment
