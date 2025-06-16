@@ -35,7 +35,7 @@ ifeq ($(GGML_CUDA),1)
 	CUDA_DOCKER_ARCH ?= all
 	CMAKE_FLAGS += -DGGML_CUDA=ON
 	BUILD_TAG := "${BUILD_TAG}-cuda"
-	DOCKER_FILE = etc/Dockerfile.cuda
+	DOCKER_FILE = etc/Dockerfile.cuda-test
 endif
 
 # If GGML_VULKAN is set, then add a vulkan tag for the go ${BUILD FLAGS}
