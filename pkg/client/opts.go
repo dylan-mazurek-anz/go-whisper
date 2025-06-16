@@ -89,14 +89,24 @@ func OptLanguage(language string) Opt {
 	}
 }
 
-// Set format for transcription (json, srt, vtt, text)
+// Set format for transcription (json, verbose_json, srt, vtt, text)
 func OptFormat(v string) Opt {
 	return func(api apitype, o *opts) error {
-		// Convert json to verbose format
-		if v == "json" {
-			v = openai.FormatJson
+		// Check format
+		if !slices.Contains(openai.Formats, v) {
+			return httpresponse.ErrBadRequest.Withf("format %q not supported", v)
 		}
-		o.openai.Format = types.StringPtr(v)
+
+		// Set format
+		switch api {
+		case apiopenai, apigowhisper:
+			o.gowhisper.Format = types.StringPtr(v)
+			o.openai.Format = types.StringPtr(v)
+		default:
+			return httpresponse.ErrBadRequest.Withf("format %q not supported", v)
+		}
+
+		// Return success
 		return nil
 	}
 }

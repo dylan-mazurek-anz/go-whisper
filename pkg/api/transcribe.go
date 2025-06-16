@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/mutablelogic/go-server/pkg/types"
 	"github.com/mutablelogic/go-whisper"
 	"github.com/mutablelogic/go-whisper/pkg/client/gowhisper"
+	"github.com/mutablelogic/go-whisper/pkg/client/openai"
 	"github.com/mutablelogic/go-whisper/pkg/schema"
 	"github.com/mutablelogic/go-whisper/pkg/task"
 )
@@ -32,6 +35,16 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	model := service.GetModelById(req.Model)
 	if model == nil {
 		return httpresponse.Error(w, httpresponse.ErrNotFound, req.Model)
+	}
+
+	// Check the format
+	format := strings.TrimSpace(types.PtrString(req.Format))
+	if format == "" {
+		format = openai.Formats[0] // Default to first format
+	} else if !slices.Contains(openai.Formats, format) {
+		return httpresponse.Error(w, httpresponse.ErrBadRequest.Withf("Unsupported format: %q", format))
+	} else {
+		fmt.Println("TranscribeFile: format:", format)
 	}
 
 	// Start a translation task
@@ -71,7 +84,7 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 	}
 
 	// Response to client
-	return response(w, types.PtrString(req.Format), result)
+	return response(w, format, result)
 }
 
 func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.ResponseWriter, r *http.Request) error {
@@ -85,6 +98,16 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 	model := service.GetModelById(req.Model)
 	if model == nil {
 		return httpresponse.Error(w, httpresponse.ErrNotFound, req.Model)
+	}
+
+	// Check the format
+	format := strings.TrimSpace(types.PtrString(req.Format))
+	if format == "" {
+		format = openai.Formats[0] // Default to first format
+	} else if !slices.Contains(openai.Formats, format) {
+		return httpresponse.Error(w, httpresponse.ErrBadRequest.Withf("Unsupported format: %q", format))
+	} else {
+		fmt.Println("TranscribeFile: format:", format)
 	}
 
 	// Cannot diarize when translating
@@ -124,7 +147,7 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 	}
 
 	// Response to client
-	return response(w, types.PtrString(req.Format), result)
+	return response(w, format, result)
 }
 
 func segment(ctx context.Context, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
@@ -145,30 +168,22 @@ func segment(ctx context.Context, taskctx *task.Context, r io.Reader, fn func(se
 	return nil
 }
 
-const (
-	FormatJson        = "json"
-	FormatVerboseJson = "verbose_json"
-	FormatText        = "text"
-	FormatSrt         = "srt"
-	FormatVtt         = "vtt"
-)
-
 func response(w http.ResponseWriter, format string, response *schema.Transcription) error {
 	switch strings.ToLower(format) {
-	case FormatJson, FormatVerboseJson:
+	case openai.FormatJson, openai.FormatVerboseJson:
 		return httpresponse.JSON(w, http.StatusOK, 2, response)
-	case FormatText, "":
+	case openai.FormatText, "":
 		return httpresponse.Write(w, http.StatusOK, types.ContentTypeTextPlain, func(w io.Writer) (int, error) {
 			return w.Write([]byte(response.Text))
 		})
-	case FormatSrt:
+	case openai.FormatSrt:
 		return httpresponse.Write(w, http.StatusOK, "application/x-subrip", func(w io.Writer) (int, error) {
 			for _, seg := range response.Segments {
 				task.WriteSegmentSrt(w, seg)
 			}
 			return 0, nil
 		})
-	case FormatVtt:
+	case openai.FormatVtt:
 		return httpresponse.Write(w, http.StatusOK, "text/vtt", func(w io.Writer) (int, error) {
 			if _, err := w.Write([]byte("WEBVTT\n\n")); err != nil {
 				return 0, err

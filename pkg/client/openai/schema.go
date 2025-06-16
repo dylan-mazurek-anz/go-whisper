@@ -62,14 +62,18 @@ const (
 )
 
 const (
-	FormatJson = "verbose_json"
-	FormatText = "text"
-	FormatSrt  = "srt"
-	FormatVtt  = "vtt"
+	FormatJson        = "json"
+	FormatVerboseJson = "verbose_json"
+	FormatText        = "text"
+	FormatSrt         = "srt"
+	FormatVtt         = "vtt"
 )
 
 var (
-	Models = []string{"whisper-1"} // Supported models for transcription and translation
+	Models  = []string{"whisper-1"} // Supported models for transcription and translation
+	Formats = []string{
+		FormatJson, FormatVerboseJson, FormatText, FormatSrt, FormatVtt,
+	}
 )
 
 /////////////////////////////////////////////////////////////////////////////////
