@@ -9,6 +9,7 @@ import (
 
 type TranslationRequest struct {
 	openai.TranslationRequest
+	Stream  *bool `json:"stream,omitempty"`
 	Diarize *bool `json:"diarize,omitempty"`
 }
 

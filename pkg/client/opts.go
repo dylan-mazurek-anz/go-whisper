@@ -20,7 +20,8 @@ import (
 type opts struct {
 	openai     openai.TranscriptionRequest
 	elevenlabs elevenlabs.TranscribeRequest
-	gowhisper  gowhisper.TranscriptionRequest
+	transcribe gowhisper.TranscriptionRequest
+	translate  gowhisper.TranslationRequest
 }
 
 type Opt func(apitype, *opts) error
@@ -46,8 +47,10 @@ func applyOpts(api apitype, model string, r io.Reader, opt ...Opt) (*opts, error
 	o.openai.Model = model
 	o.elevenlabs.File = multipart.File{Body: r}
 	o.elevenlabs.Model = model
-	o.gowhisper.File = multipart.File{Body: r}
-	o.gowhisper.Model = model
+	o.transcribe.File = multipart.File{Body: r}
+	o.transcribe.Model = model
+	o.translate.File = multipart.File{Body: r}
+	o.translate.Model = model
 
 	for _, opt := range opt {
 		if err := opt(api, &o); err != nil {
@@ -73,7 +76,7 @@ func OptLanguage(language string) Opt {
 				return httpresponse.ErrBadRequest.Withf("language %q not supported", language)
 			} else {
 				o.openai.Language = types.StringPtr(code)
-				o.gowhisper.Language = types.StringPtr(code)
+				o.transcribe.Language = types.StringPtr(code)
 			}
 		case apielevenlabs:
 			// ElevenLabs uses three-letter language codes
@@ -100,7 +103,8 @@ func OptFormat(v string) Opt {
 		// Set format
 		switch api {
 		case apiopenai, apigowhisper:
-			o.gowhisper.Format = types.StringPtr(v)
+			o.translate.Format = types.StringPtr(v)
+			o.transcribe.Format = types.StringPtr(v)
 			o.openai.Format = types.StringPtr(v)
 		default:
 			return httpresponse.ErrBadRequest.Withf("format %q not supported", v)
@@ -116,7 +120,8 @@ func OptPath(v string) Opt {
 	return func(api apitype, o *opts) error {
 		o.openai.File.Path = v
 		o.elevenlabs.File.Path = v
-		o.gowhisper.File.Path = v
+		o.translate.File.Path = v
+		o.transcribe.File.Path = v
 		return nil
 	}
 }
@@ -127,7 +132,8 @@ func OptPrompt(v string) Opt {
 		switch api {
 		case apiopenai, apigowhisper:
 			o.openai.Prompt = types.StringPtr(v)
-			o.gowhisper.Prompt = types.StringPtr(v)
+			o.translate.Prompt = types.StringPtr(v)
+			o.transcribe.Prompt = types.StringPtr(v)
 		default:
 			return httpresponse.ErrNotImplemented.Withf("OptPrompt not supported")
 		}
@@ -141,7 +147,8 @@ func OptTemperature(v float64) Opt {
 		switch api {
 		case apiopenai, apigowhisper:
 			o.openai.Temperature = types.Float64Ptr(v)
-			o.gowhisper.Temperature = types.Float64Ptr(v)
+			o.translate.Temperature = types.Float64Ptr(v)
+			o.transcribe.Temperature = types.Float64Ptr(v)
 		default:
 			return httpresponse.ErrNotImplemented.Withf("OptTemperature not supported")
 		}
@@ -170,7 +177,8 @@ func OptStream() Opt {
 		switch api {
 		case apiopenai, apigowhisper:
 			o.openai.Stream = types.BoolPtr(true)
-			o.gowhisper.Stream = types.BoolPtr(true)
+			o.translate.Stream = types.BoolPtr(true)
+			o.transcribe.Stream = types.BoolPtr(true)
 		default:
 			return httpresponse.ErrNotImplemented.Withf("OptStream not supported")
 		}
@@ -183,7 +191,8 @@ func OptDiarize() Opt {
 	return func(api apitype, o *opts) error {
 		switch api {
 		case apigowhisper:
-			o.gowhisper.Diarize = types.BoolPtr(true)
+			o.translate.Diarize = types.BoolPtr(true)
+			o.transcribe.Diarize = types.BoolPtr(true)
 		case apielevenlabs:
 			o.elevenlabs.Diarize = types.BoolPtr(true)
 		default:

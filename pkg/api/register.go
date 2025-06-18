@@ -24,6 +24,13 @@ func RegisterEndpoints(base string, whisper *whisper.Whisper, mux *http.ServeMux
 	// Create a logger
 	logger := logger.New(os.Stderr, logger.Term, debug)
 
+	// Not Found: GET /
+	//   returns a not found response
+	mux.HandleFunc("/", logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		httpresponse.Error(w, httpresponse.ErrNotFound)
+	}))
+
 	// Health: GET /v1/health
 	//   returns an empty OK response
 	mux.HandleFunc(types.JoinPath(base, "health"), logger.HandleFunc(func(w http.ResponseWriter, r *http.Request) {

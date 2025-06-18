@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -43,8 +42,6 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		format = openai.Formats[0] // Default to first format
 	} else if !slices.Contains(openai.Formats, format) {
 		return httpresponse.Error(w, httpresponse.ErrBadRequest.Withf("Unsupported format: %q", format))
-	} else {
-		fmt.Println("TranscribeFile: format:", format)
 	}
 
 	// Start a translation task
@@ -106,8 +103,6 @@ func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.Respons
 		format = openai.Formats[0] // Default to first format
 	} else if !slices.Contains(openai.Formats, format) {
 		return httpresponse.Error(w, httpresponse.ErrBadRequest.Withf("Unsupported format: %q", format))
-	} else {
-		fmt.Println("TranscribeFile: format:", format)
 	}
 
 	// Cannot diarize when translating
