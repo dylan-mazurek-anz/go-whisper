@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	Models  = []string{"whisper-1"} // Supported models for transcription and translation
+	Models  = []string{"whisper-1", "gpt-4o-mini-transcribe", "gpt-4o-transcribe"} // Supported models for transcription and translation
 	Formats = []string{
 		FormatJson, FormatVerboseJson, FormatText, FormatSrt, FormatVtt,
 	}

@@ -21,6 +21,19 @@ import (
 )
 
 ///////////////////////////////////////////////////////////////////////////////
+// TYPES
+
+type textDelta struct {
+	Type  string `json:"type"`
+	Delta string `json:"delta"`
+}
+
+type textDone struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
 func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.ResponseWriter, r *http.Request) error {
@@ -42,6 +55,15 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 		format = openai.Formats[0] // Default to first format
 	} else if !slices.Contains(openai.Formats, format) {
 		return httpresponse.Error(w, httpresponse.ErrBadRequest.Withf("Unsupported format: %q", format))
+	}
+
+	// Create a text stream
+	var stream *httpresponse.TextStream
+	if types.PtrBool(req.Stream) {
+		if stream = httpresponse.NewTextStream(w); stream == nil {
+			return httpresponse.Error(w, httpresponse.ErrInternalError.With("Cannot create text stream"))
+		}
+		defer stream.Close()
 	}
 
 	// Start a translation task
@@ -74,14 +96,29 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 
 		// Decode, resample and segment the audio file
 		return segment(ctx, taskctx, req.File.Body, func(seg *schema.Segment) {
-			// TODO - for streaming
+			if stream == nil {
+				return
+			}
+			stream.Write("", textDelta{
+				Type:  "transcript.text.delta",
+				Delta: seg.Text,
+			})
 		})
 	}); err != nil {
 		return httpresponse.Error(w, httpresponse.ErrInternalError, err.Error())
 	}
 
 	// Response to client
-	return response(w, format, result)
+	if stream == nil {
+		return response(w, format, result)
+	} else {
+		stream.Write("", textDone{
+			Type: "transcript.text.done",
+			Text: result.Text,
+		})
+		stream.Write("", "[DONE]")
+		return nil
+	}
 }
 
 func TranslateFile(ctx context.Context, service *whisper.Whisper, w http.ResponseWriter, r *http.Request) error {

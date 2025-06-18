@@ -102,9 +102,10 @@ func OptFormat(v string) Opt {
 
 		// Set format
 		switch api {
-		case apiopenai, apigowhisper:
+		case apigowhisper:
 			o.translate.Format = types.StringPtr(v)
 			o.transcribe.Format = types.StringPtr(v)
+		case apiopenai:
 			o.openai.Format = types.StringPtr(v)
 		default:
 			return httpresponse.ErrBadRequest.Withf("format %q not supported", v)
@@ -175,8 +176,12 @@ func OptLogprobs() Opt {
 func OptStream() Opt {
 	return func(api apitype, o *opts) error {
 		switch api {
-		case apiopenai, apigowhisper:
+		case apiopenai:
+			if o.openai.Model == "whisper-1" {
+				return httpresponse.ErrBadRequest.With("whisper-1 does not support streaming")
+			}
 			o.openai.Stream = types.BoolPtr(true)
+		case apigowhisper:
 			o.translate.Stream = types.BoolPtr(true)
 			o.transcribe.Stream = types.BoolPtr(true)
 		default:

@@ -156,7 +156,7 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 
 	// Create an array of parameters for the transcription
 	params := []client.Opt{
-		client.OptPath("audio.wav"), client.OptFormat(openai.FormatVerboseJson), client.OptLanguage(cmd.Language),
+		client.OptPath("audio.wav"), client.OptFormat(openai.FormatJson), client.OptLanguage(cmd.Language),
 	}
 	if cmd.Diarize {
 		params = append(params, client.OptDiarize())
