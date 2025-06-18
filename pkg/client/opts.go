@@ -18,6 +18,7 @@ import (
 
 // Request options
 type opts struct {
+	task
 	openai     openai.TranscriptionRequest
 	elevenlabs elevenlabs.TranscribeRequest
 	transcribe gowhisper.TranscriptionRequest
@@ -27,6 +28,7 @@ type opts struct {
 type Opt func(apitype, *opts) error
 
 type apitype uint
+type task string
 
 ///////////////////////////////////////////////////////////////////////////////
 // GLOBALS
@@ -37,20 +39,31 @@ const (
 	apigowhisper
 )
 
+const (
+	translate  = task("translate")
+	transcribe = task("transcribe")
+)
+
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-func applyOpts(api apitype, model string, r io.Reader, opt ...Opt) (*opts, error) {
+func applyOpts(api apitype, task task, model string, r io.Reader, opt ...Opt) (*opts, error) {
 	var o opts
 
-	o.openai.File = multipart.File{Body: r}
-	o.openai.Model = model
-	o.elevenlabs.File = multipart.File{Body: r}
-	o.elevenlabs.Model = model
-	o.transcribe.File = multipart.File{Body: r}
-	o.transcribe.Model = model
-	o.translate.File = multipart.File{Body: r}
-	o.translate.Model = model
+	o.task = task
+	switch {
+	case api == apiopenai:
+		o.openai.File = multipart.File{Body: r}
+		o.openai.Model = model
+	case api == apielevenlabs:
+		o.elevenlabs.File = multipart.File{Body: r}
+		o.elevenlabs.Model = model
+	case api == apigowhisper:
+		o.transcribe.File = multipart.File{Body: r}
+		o.transcribe.Model = model
+		o.translate.File = multipart.File{Body: r}
+		o.translate.Model = model
+	}
 
 	for _, opt := range opt {
 		if err := opt(api, &o); err != nil {

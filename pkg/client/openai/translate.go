@@ -21,8 +21,13 @@ func (c *Client) Translate(ctx context.Context, req TranslationRequest) (*Transc
 	// Set default model
 	if req.Model == "" {
 		req.Model = Models[0]
-	} else if !slices.Contains(Models, req.Model) {
+	}
+
+	// Check model
+	if !slices.Contains(Models, req.Model) {
 		return nil, fmt.Errorf("invalid model %q, must be one of %v", req.Model, Models)
+	} else if req.Model != "whisper-1" {
+		return nil, fmt.Errorf("translation with model %q is not supported", req.Model)
 	}
 
 	// Check file, set path if not provided
