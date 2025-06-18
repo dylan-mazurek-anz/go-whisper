@@ -162,7 +162,7 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	case c.gowhisper != nil && model != "":
 		if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
 			return nil, err
-		} else if resp, err := c.gowhisper.Transcribe(ctx, req.gowhisper); err != nil {
+		} else if resp, err := c.gowhisper.Transcribe(ctx, req.transcribe); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
@@ -189,17 +189,14 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 		}
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
 		return nil, httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
-	// TODO
-	/*
-		case c.gowhisper != nil && model != "":
-			if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
-				return nil, err
-			} else if resp, err := c.gowhisper.Translate(ctx, req.gowhisper.TranslationRequest); err != nil {
-				return nil, err
-			} else {
-				response = resp.Segments()
-			}
-	*/
+	case c.gowhisper != nil && model != "":
+		if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
+			return nil, err
+		} else if resp, err := c.gowhisper.Translate(ctx, req.translate); err != nil {
+			return nil, err
+		} else {
+			response = resp.Segments()
+		}
 	default:
 		return nil, httpresponse.ErrNotImplemented.Withf("model %q is not supported", model)
 	}
@@ -207,83 +204,3 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	// Return success
 	return response, nil
 }
-
-/*
-func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
-	var request struct {
-		File  multipart.File `json:"file"`
-		Model string         `json:"model"`
-		opts
-	}
-	var response schema.Transcription
-
-	// Get the name from the io.Reader
-	name := ""
-	if f, ok := r.(*os.File); ok {
-		name = filepath.Base(f.Name())
-	} else {
-		name = "audio.wav" // Default name if not a file
-	}
-
-	// Create the request
-	request.Model = model
-	request.File = multipart.File{
-		Path: name,
-		Body: r,
-	}
-	for _, o := range opt {
-		if err := o(&request.opts); err != nil {
-			return nil, err
-		}
-	}
-
-	// Request->Response
-	if payload, err := client.NewMultipartRequest(request, types.ContentTypeFormData); err != nil {
-		return nil, err
-	} else if err := c.DoWithContext(ctx, payload, &response, client.OptPath("audio/transcriptions"), client.OptNoTimeout()); err != nil {
-		return nil, err
-	}
-
-	// Return success
-	return &response, nil
-}
-
-func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt ...Opt) (*schema.Transcription, error) {
-	var request struct {
-		File  multipart.File `json:"file"`
-		Model string         `json:"model"`
-		opts
-	}
-	var response schema.Transcription
-
-	// Get the name from the io.Reader
-	name := ""
-	if f, ok := r.(*os.File); ok {
-		name = filepath.Base(f.Name())
-	} else {
-		name = "audio.wav" // Default name if not a file
-	}
-
-	// Create the request
-	request.Model = model
-	request.File = multipart.File{
-		Path: name,
-		Body: r,
-	}
-	for _, o := range opt {
-		if err := o(&request.opts); err != nil {
-			return nil, err
-		}
-	}
-
-	// Request->Response
-	if payload, err := client.NewMultipartRequest(request, types.ContentTypeFormData); err != nil {
-		return nil, err
-	} else if err := c.DoWithContext(ctx, payload, &response, client.OptPath("audio/translations"), client.OptNoTimeout()); err != nil {
-		return nil, err
-	}
-
-	// Return success
-	return &response, nil
-}
-*/
