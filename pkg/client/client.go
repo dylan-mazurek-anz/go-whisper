@@ -144,15 +144,19 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 	var response *schema.Transcription
 	switch {
 	case c.openai != nil && slices.Contains(openai.Models, model):
-		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
+		req, err := applyOpts(apiopenai, transcribe, model, r, opt...)
+		if err != nil {
 			return nil, err
-		} else if resp, err := c.openai.Transcribe(ctx, req.openai); err != nil {
+		}
+
+		c.openai.SetStreamCallback(req.streamfn)
+		if resp, err := c.openai.Transcribe(ctx, req.openai); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
 		}
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
-		if req, err := applyOpts(apielevenlabs, model, r, opt...); err != nil {
+		if req, err := applyOpts(apielevenlabs, transcribe, model, r, opt...); err != nil {
 			return nil, err
 		} else if resp, err := c.elevenlabs.Transcribe(ctx, req.elevenlabs); err != nil {
 			return nil, err
@@ -160,9 +164,13 @@ func (c *Client) Transcribe(ctx context.Context, model string, r io.Reader, opt 
 			response = resp.Segments()
 		}
 	case c.gowhisper != nil && model != "":
-		if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
+		req, err := applyOpts(apigowhisper, transcribe, model, r, opt...)
+		if err != nil {
 			return nil, err
-		} else if resp, err := c.gowhisper.Transcribe(ctx, req.transcribe); err != nil {
+		}
+
+		c.gowhisper.SetStreamCallback(req.streamfn)
+		if resp, err := c.gowhisper.Transcribe(ctx, req.transcribe); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()
@@ -180,7 +188,7 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	var response *schema.Transcription
 	switch {
 	case c.openai != nil && slices.Contains(openai.Models, model):
-		if req, err := applyOpts(apiopenai, model, r, opt...); err != nil {
+		if req, err := applyOpts(apiopenai, translate, model, r, opt...); err != nil {
 			return nil, err
 		} else if resp, err := c.openai.Translate(ctx, req.openai.TranslationRequest); err != nil {
 			return nil, err
@@ -190,9 +198,13 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
 		return nil, httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
 	case c.gowhisper != nil && model != "":
-		if req, err := applyOpts(apigowhisper, model, r, opt...); err != nil {
+		req, err := applyOpts(apigowhisper, translate, model, r, opt...)
+		if err != nil {
 			return nil, err
-		} else if resp, err := c.gowhisper.Translate(ctx, req.translate); err != nil {
+		}
+
+		c.gowhisper.SetStreamCallback(req.streamfn)
+		if resp, err := c.gowhisper.Translate(ctx, req.translate); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()

@@ -43,23 +43,21 @@ func (c *Client) DownloadModel(ctx context.Context, path string, fn func(cur, to
 		client.OptNoTimeout(),
 		client.OptTextStreamCallback(func(evt client.TextStreamEvent) error {
 			switch evt.Event {
-			case "progress":
+			case schema.DownloadStreamProgressType:
 				var r resp
 				if err := evt.Json(&r); err != nil {
 					return err
 				} else {
 					fn(r.Completed, r.Total)
 				}
-			case "error":
+			case schema.DownloadStreamErrorType:
 				var errstr string
-				if evt.Event == "error" {
-					if err := evt.Json(&errstr); err != nil {
-						return err
-					} else {
-						return errors.New(errstr)
-					}
+				if err := evt.Json(&errstr); err != nil {
+					return err
+				} else {
+					return errors.New(errstr)
 				}
-			case "ok":
+			case schema.DownloadStreamDoneType:
 				if err := evt.Json(&r); err != nil {
 					return err
 				}

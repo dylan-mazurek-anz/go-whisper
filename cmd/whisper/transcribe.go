@@ -13,7 +13,7 @@ import (
 	types "github.com/mutablelogic/go-server/pkg/types"
 	whisper "github.com/mutablelogic/go-whisper"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
-	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	openai "github.com/mutablelogic/go-whisper/pkg/client/openai"
 	schema "github.com/mutablelogic/go-whisper/pkg/schema"
 	task "github.com/mutablelogic/go-whisper/pkg/task"
 	wav "github.com/mutablelogic/go-whisper/pkg/wav"
@@ -156,13 +156,16 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 
 	// Create an array of parameters for the transcription
 	params := []client.Opt{
-		client.OptPath("audio.wav"), client.OptFormat(openai.FormatVerboseJson), client.OptLanguage(cmd.Language),
+		client.OptPath("audio.wav"), client.OptFormat(openai.FormatJson), client.OptLanguage(cmd.Language),
 	}
 	if cmd.Diarize {
 		params = append(params, client.OptDiarize())
 	}
 	if cmd.Stream {
-		params = append(params, client.OptStream())
+		params = append(params, client.OptStream(func(evt schema.Event) {
+			// TODO: Delta will be text or json depending on the format
+			fmt.Println("event:", evt)
+		}))
 	}
 	if cmd.Temperature != nil {
 		params = append(params, client.OptTemperature(types.PtrFloat64(cmd.Temperature)))

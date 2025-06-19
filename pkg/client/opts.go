@@ -11,6 +11,7 @@ import (
 	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
 	"github.com/mutablelogic/go-whisper/pkg/client/gowhisper"
 	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -18,15 +19,18 @@ import (
 
 // Request options
 type opts struct {
+	task
 	openai     openai.TranscriptionRequest
 	elevenlabs elevenlabs.TranscribeRequest
 	transcribe gowhisper.TranscriptionRequest
 	translate  gowhisper.TranslationRequest
+	streamfn   func(schema.Event)
 }
 
 type Opt func(apitype, *opts) error
 
 type apitype uint
+type task string
 
 ///////////////////////////////////////////////////////////////////////////////
 // GLOBALS
@@ -37,20 +41,31 @@ const (
 	apigowhisper
 )
 
+const (
+	translate  = task("translate")
+	transcribe = task("transcribe")
+)
+
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-func applyOpts(api apitype, model string, r io.Reader, opt ...Opt) (*opts, error) {
+func applyOpts(api apitype, task task, model string, r io.Reader, opt ...Opt) (*opts, error) {
 	var o opts
 
-	o.openai.File = multipart.File{Body: r}
-	o.openai.Model = model
-	o.elevenlabs.File = multipart.File{Body: r}
-	o.elevenlabs.Model = model
-	o.transcribe.File = multipart.File{Body: r}
-	o.transcribe.Model = model
-	o.translate.File = multipart.File{Body: r}
-	o.translate.Model = model
+	o.task = task
+	switch {
+	case api == apiopenai:
+		o.openai.File = multipart.File{Body: r}
+		o.openai.Model = model
+	case api == apielevenlabs:
+		o.elevenlabs.File = multipart.File{Body: r}
+		o.elevenlabs.Model = model
+	case api == apigowhisper:
+		o.transcribe.File = multipart.File{Body: r}
+		o.transcribe.Model = model
+		o.translate.File = multipart.File{Body: r}
+		o.translate.Model = model
+	}
 
 	for _, opt := range opt {
 		if err := opt(api, &o); err != nil {
@@ -77,6 +92,7 @@ func OptLanguage(language string) Opt {
 			} else {
 				o.openai.Language = types.StringPtr(code)
 				o.transcribe.Language = types.StringPtr(code)
+				o.translate.Language = types.StringPtr(code)
 			}
 		case apielevenlabs:
 			// ElevenLabs uses three-letter language codes
@@ -102,9 +118,10 @@ func OptFormat(v string) Opt {
 
 		// Set format
 		switch api {
-		case apiopenai, apigowhisper:
+		case apigowhisper:
 			o.translate.Format = types.StringPtr(v)
 			o.transcribe.Format = types.StringPtr(v)
+		case apiopenai:
 			o.openai.Format = types.StringPtr(v)
 		default:
 			return httpresponse.ErrBadRequest.Withf("format %q not supported", v)
@@ -172,13 +189,19 @@ func OptLogprobs() Opt {
 }
 
 // Model response data will be streamed to the client as it is generated using server-sent events.
-func OptStream() Opt {
+func OptStream(fn func(schema.Event)) Opt {
 	return func(api apitype, o *opts) error {
 		switch api {
-		case apiopenai, apigowhisper:
+		case apiopenai:
+			if o.openai.Model == "whisper-1" {
+				return httpresponse.ErrBadRequest.With("whisper-1 does not support streaming")
+			}
 			o.openai.Stream = types.BoolPtr(true)
+			o.streamfn = fn
+		case apigowhisper:
 			o.translate.Stream = types.BoolPtr(true)
 			o.transcribe.Stream = types.BoolPtr(true)
+			o.streamfn = fn
 		default:
 			return httpresponse.ErrNotImplemented.Withf("OptStream not supported")
 		}

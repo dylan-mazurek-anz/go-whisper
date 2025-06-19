@@ -8,7 +8,9 @@ import (
 
 	// Packages
 	"github.com/mutablelogic/go-client"
+	"github.com/mutablelogic/go-server/pkg/types"
 	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -27,10 +29,33 @@ func (c *Client) Translate(ctx context.Context, req TranslationRequest) (*Transc
 		}
 	}
 
+	// Set request options
+	opts := []client.RequestOpt{
+		client.OptPath(openai.TranslatePath),
+	}
+	if types.PtrBool(req.Stream) {
+		opts = append(opts, client.OptTextStreamCallback(func(e client.TextStreamEvent) error {
+			// Ignore non-data events
+			if e.Data == "" {
+				return nil
+			}
+			// Parse the event
+			var evt schema.Event
+			if err := e.Json(&evt); err != nil {
+				return fmt.Errorf("failed to parse event: %w", err)
+			} else if c.streamfn != nil {
+				c.streamfn(evt)
+			}
+
+			// Return success
+			return nil
+		}))
+	}
+
 	// Create multipart request, and execute it
 	if payload, err := client.NewMultipartRequest(req, client.ContentTypeAny); err != nil {
 		return nil, err
-	} else if err := c.Do(payload, &response, client.OptPath(openai.TranslatePath)); err != nil {
+	} else if err := c.Do(payload, &response, opts...); err != nil {
 		return nil, err
 	}
 

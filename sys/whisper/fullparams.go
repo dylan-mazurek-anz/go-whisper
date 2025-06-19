@@ -77,6 +77,7 @@ func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	C.set_callbacks((*C.struct_whisper_full_params)(&params), C.bool(true))
 
 	// TODO: Check these
+	params.print_special = C.bool(false) // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
 	params.entropy_thold = 2.40
 	params.greedy.best_of = 5
 	params.beam_search.beam_size = 5
@@ -84,6 +85,7 @@ func DefaultFullParams(strategy SamplingStrategy) FullParams {
 	params.logprob_thold = -1.0
 	params.no_speech_thold = 0.60
 	params.temperature_inc = 0.2
+	params.no_timestamps = C.bool(false) // generate timestamps
 
 	// Return success
 	return params
