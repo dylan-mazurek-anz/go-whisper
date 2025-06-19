@@ -16,6 +16,15 @@ type Model struct {
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// GLOBALS
+
+const (
+	DownloadStreamProgressType = "download.progress"
+	DownloadStreamErrorType    = "download.error"
+	DownloadStreamDoneType     = "download.done"
+)
+
+//////////////////////////////////////////////////////////////////////////////
 // STRINGIFY
 
 func (m *Model) String() string {

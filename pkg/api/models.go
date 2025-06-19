@@ -47,33 +47,38 @@ func ListModels(ctx context.Context, w http.ResponseWriter, service *whisper.Whi
 	})
 }
 
-func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, service *whisper.Whisper) {
-	// Get query and body
+func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, service *whisper.Whisper) error {
+	// Get query
 	var query queryDownloadModel
-	var req reqDownloadModel
 	if err := httprequest.Query(r.URL.Query(), &query); err != nil {
-		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
-		return
-	}
-	if err := httprequest.Read(r, &req); err != nil {
-		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
-		return
-	}
-
-	// Validate the request
-	if err := req.Validate(); err != nil {
-		httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
-		return
+		return httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
 	}
 
 	// Create a text stream
 	var stream *httpresponse.TextStream
 	if query.Stream {
 		if stream = httpresponse.NewTextStream(w); stream == nil {
-			httpresponse.Error(w, httpresponse.ErrInternalError, "Cannot create text stream")
-			return
+			return httpresponse.Error(w, httpresponse.ErrInternalError, "Cannot create text stream")
 		}
 		defer stream.Close()
+	}
+
+	// Get the body
+	var req reqDownloadModel
+	if err := httprequest.Read(r, &req); err != nil {
+		if stream != nil {
+			stream.Write(schema.DownloadStreamErrorType, err.Error())
+			return nil
+		} else {
+			return httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
+		}
+	} else if err := req.Validate(); err != nil {
+		if stream != nil {
+			stream.Write(schema.DownloadStreamErrorType, err.Error())
+			return nil
+		} else {
+			return httpresponse.Error(w, httpresponse.ErrBadRequest, err.Error())
+		}
 	}
 
 	// Download the model
@@ -81,7 +86,7 @@ func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	model, err := service.DownloadModel(ctx, req.Name(), func(curBytes, totalBytes uint64) {
 		if time.Since(t) > time.Second && stream != nil {
 			t = time.Now()
-			stream.Write("progress", respDownloadModelStatus{
+			stream.Write(schema.DownloadStreamProgressType, respDownloadModelStatus{
 				Status:    fmt.Sprint("downloading ", req.Name()),
 				Total:     totalBytes,
 				Completed: curBytes,
@@ -90,19 +95,21 @@ func DownloadModel(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	})
 	if err != nil {
 		if stream != nil {
-			stream.Write("error", err.Error())
+			stream.Write(schema.DownloadStreamErrorType, err.Error())
+			return nil
 		} else {
-			httpresponse.Error(w, httpresponse.ErrGatewayError, err.Error())
+			return httpresponse.Error(w, httpresponse.ErrGatewayError, err.Error())
 		}
-		return
 	}
 
 	// Return the model information
-	if query.Stream {
-		stream.Write("ok", model)
-	} else {
-		httpresponse.JSON(w, http.StatusCreated, 2, model)
+	if stream != nil {
+		stream.Write(schema.DownloadStreamDoneType, model)
+		return nil
 	}
+
+	// Return the model information as JSON
+	return httpresponse.JSON(w, http.StatusCreated, 2, model)
 }
 
 func GetModelById(ctx context.Context, w http.ResponseWriter, service *whisper.Whisper, id string) {
