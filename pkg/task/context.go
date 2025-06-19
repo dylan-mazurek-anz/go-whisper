@@ -141,7 +141,7 @@ func (ctx *Context) Is(model *schema.Model) bool {
 
 // Reset task context for re-use
 func (task *Context) CopyParams() {
-	task.params = whisper.DefaultFullParams(whisper.SAMPLING_GREEDY)
+	task.params = whisper.DefaultFullParams(whisper.SAMPLING_BEAM_SEARCH)
 	task.params.SetLanguage("auto")
 	task.result = new(schema.Transcription)
 }
@@ -168,6 +168,7 @@ func (task *Context) Transcribe(ctx context.Context, ts time.Duration, samples [
 	// Set the new segment function
 	if fn != nil {
 		task.params.SetSegmentCallback(task.whisper, func(new_segments int) {
+			task.result.Language = whisper.Whisper_lang_str_full(task.whisper.DefaultLangId())
 			num_segments := task.whisper.NumSegments()
 			offset := len(task.result.Segments)
 			for i := num_segments - new_segments; i < num_segments; i++ {

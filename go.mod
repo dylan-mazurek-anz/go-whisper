@@ -9,7 +9,7 @@ require (
 	github.com/djthorpe/go-errors v1.0.3
 	github.com/go-audio/audio v1.0.0
 	github.com/go-audio/wav v1.1.0
-	github.com/mutablelogic/go-client v1.1.1
+	github.com/mutablelogic/go-client v1.1.2
 	github.com/mutablelogic/go-media v1.7.5
 	github.com/mutablelogic/go-server v1.5.17
 	github.com/orcaman/writerseeker v0.0.0-20200621085525-1d3f536ff85e

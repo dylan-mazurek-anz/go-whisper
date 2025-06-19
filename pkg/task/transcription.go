@@ -13,10 +13,16 @@ import (
 // LIFECYCLE
 
 func newSegment(ts time.Duration, offset int32, seg *whisper.Segment) *schema.Segment {
-	// Dumb copy function
+	tokens := make([]string, 0, len(seg.Tokens))
+	for _, token := range seg.Tokens {
+		if token.Text != "" {
+			tokens = append(tokens, token.Text)
+		}
+	}
 	return &schema.Segment{
 		Id:          offset + seg.Id,
 		Text:        seg.Text,
+		Tokens:      tokens,
 		Start:       schema.Timestamp(seg.T0 + ts),
 		End:         schema.Timestamp(seg.T1 + ts),
 		SpeakerTurn: seg.SpeakerTurn,

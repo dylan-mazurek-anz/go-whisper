@@ -198,9 +198,13 @@ func (c *Client) Translate(ctx context.Context, model string, r io.Reader, opt .
 	case c.elevenlabs != nil && slices.Contains(elevenlabs.Models, model):
 		return nil, httpresponse.ErrNotImplemented.Withf("translation with model %q is not supported", model)
 	case c.gowhisper != nil && model != "":
-		if req, err := applyOpts(apigowhisper, translate, model, r, opt...); err != nil {
+		req, err := applyOpts(apigowhisper, translate, model, r, opt...)
+		if err != nil {
 			return nil, err
-		} else if resp, err := c.gowhisper.Translate(ctx, req.translate); err != nil {
+		}
+
+		c.gowhisper.SetStreamCallback(req.streamfn)
+		if resp, err := c.gowhisper.Translate(ctx, req.translate); err != nil {
 			return nil, err
 		} else {
 			response = resp.Segments()

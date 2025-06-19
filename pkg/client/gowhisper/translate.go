@@ -35,6 +35,10 @@ func (c *Client) Translate(ctx context.Context, req TranslationRequest) (*Transc
 	}
 	if types.PtrBool(req.Stream) {
 		opts = append(opts, client.OptTextStreamCallback(func(e client.TextStreamEvent) error {
+			// Ignore non-data events
+			if e.Data == "" {
+				return nil
+			}
 			// Parse the event
 			var evt schema.Event
 			if err := e.Json(&evt); err != nil {

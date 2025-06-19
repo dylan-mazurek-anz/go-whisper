@@ -92,6 +92,7 @@ func OptLanguage(language string) Opt {
 			} else {
 				o.openai.Language = types.StringPtr(code)
 				o.transcribe.Language = types.StringPtr(code)
+				o.translate.Language = types.StringPtr(code)
 			}
 		case apielevenlabs:
 			// ElevenLabs uses three-letter language codes
