@@ -13,7 +13,7 @@ import (
 	types "github.com/mutablelogic/go-server/pkg/types"
 	whisper "github.com/mutablelogic/go-whisper"
 	client "github.com/mutablelogic/go-whisper/pkg/client"
-	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	openai "github.com/mutablelogic/go-whisper/pkg/client/openai"
 	schema "github.com/mutablelogic/go-whisper/pkg/schema"
 	task "github.com/mutablelogic/go-whisper/pkg/task"
 	wav "github.com/mutablelogic/go-whisper/pkg/wav"
@@ -163,6 +163,7 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 	}
 	if cmd.Stream {
 		params = append(params, client.OptStream(func(evt schema.Event) {
+			// TODO: Delta will be text or json depending on the format
 			fmt.Println("event:", evt)
 		}))
 	}
