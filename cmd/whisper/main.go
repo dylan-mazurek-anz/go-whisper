@@ -32,6 +32,7 @@ type CLI struct {
 	Delete     DeleteCmd     `cmd:"delete" help:"Delete a model"`
 	Server     ServerCmd     `cmd:"server" help:"Run the whisper service"`
 	Version    VersionCmd    `cmd:"version" help:"Print version information"`
+	Segment    SegmentCmd    `cmd:"segment" help:"Segment an audio file"`
 }
 
 func main() {
