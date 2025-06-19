@@ -1,8 +1,9 @@
 package api
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"io"
 	"net/http"
 	"slices"
@@ -117,12 +118,32 @@ func transcribe_file(ctx context.Context, service *whisper.Whisper, w http.Respo
 				return
 			}
 
-			fmt.Println(seg)
+			// If the language has changed, write a language event
+			if language != taskctx.Language() {
+				language = taskctx.Language()
+				stream.Write(schema.TranscribeStreamLanguageType, schema.Event{
+					Type: schema.TranscribeStreamLanguageType,
+					Text: language,
+				})
+			}
+
+			// Format the text into the correct format
+			var text bytes.Buffer
+			switch format {
+			case openai.FormatText:
+				text.WriteString(seg.Text)
+			case openai.FormatSrt:
+				seg.WriteSRT(&text, 0)
+			case openai.FormatVtt:
+				seg.WriteVTT(&text, 0)
+			case openai.FormatJson, openai.FormatVerboseJson:
+				json.NewEncoder(&text).Encode(seg)
+			}
 
 			// Write the segment to the stream
 			stream.Write(schema.TranscribeStreamDeltaType, schema.Event{
 				Type:  schema.TranscribeStreamDeltaType,
-				Delta: seg.Text,
+				Delta: text.String(),
 			})
 		})
 	}); err != nil {
