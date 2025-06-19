@@ -11,6 +11,7 @@ import (
 	"github.com/mutablelogic/go-whisper/pkg/client/elevenlabs"
 	"github.com/mutablelogic/go-whisper/pkg/client/gowhisper"
 	"github.com/mutablelogic/go-whisper/pkg/client/openai"
+	"github.com/mutablelogic/go-whisper/pkg/schema"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -23,6 +24,7 @@ type opts struct {
 	elevenlabs elevenlabs.TranscribeRequest
 	transcribe gowhisper.TranscriptionRequest
 	translate  gowhisper.TranslationRequest
+	streamfn   func(schema.Event)
 }
 
 type Opt func(apitype, *opts) error
@@ -186,7 +188,7 @@ func OptLogprobs() Opt {
 }
 
 // Model response data will be streamed to the client as it is generated using server-sent events.
-func OptStream() Opt {
+func OptStream(fn func(schema.Event)) Opt {
 	return func(api apitype, o *opts) error {
 		switch api {
 		case apiopenai:
@@ -194,9 +196,11 @@ func OptStream() Opt {
 				return httpresponse.ErrBadRequest.With("whisper-1 does not support streaming")
 			}
 			o.openai.Stream = types.BoolPtr(true)
+			o.streamfn = fn
 		case apigowhisper:
 			o.translate.Stream = types.BoolPtr(true)
 			o.transcribe.Stream = types.BoolPtr(true)
+			o.streamfn = fn
 		default:
 			return httpresponse.ErrNotImplemented.Withf("OptStream not supported")
 		}

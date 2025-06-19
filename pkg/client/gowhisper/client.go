@@ -13,6 +13,7 @@ import (
 
 type Client struct {
 	*client.Client
+	streamfn func(schema.Event)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -31,7 +32,11 @@ func New(endpoint string, opts ...client.ClientOpt) (*Client, error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// PULIC METHODS
+// PUBLIC METHODS
+
+func (c *Client) SetStreamCallback(fn func(schema.Event)) {
+	c.streamfn = fn
+}
 
 func (c *Client) Ping(ctx context.Context) error {
 	return c.DoWithContext(ctx, client.MethodGet, nil, client.OptPath("health"))

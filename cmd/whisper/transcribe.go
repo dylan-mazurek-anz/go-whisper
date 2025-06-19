@@ -162,7 +162,9 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 		params = append(params, client.OptDiarize())
 	}
 	if cmd.Stream {
-		params = append(params, client.OptStream())
+		params = append(params, client.OptStream(func(evt schema.Event) {
+			fmt.Println("event:", evt)
+		}))
 	}
 	if cmd.Temperature != nil {
 		params = append(params, client.OptTemperature(types.PtrFloat64(cmd.Temperature)))

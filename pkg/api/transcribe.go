@@ -116,7 +116,6 @@ func TranscribeFile(ctx context.Context, service *whisper.Whisper, w http.Respon
 			Type: "transcript.text.done",
 			Text: result.Text,
 		})
-		stream.Write("", "[DONE]")
 		return nil
 	}
 }

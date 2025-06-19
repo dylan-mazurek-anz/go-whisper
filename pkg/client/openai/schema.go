@@ -69,6 +69,10 @@ const (
 	FormatVtt         = "vtt"
 )
 
+const (
+	streamDoneText = "[DONE]" // Text indicating the end of a stream
+)
+
 var (
 	Models  = []string{"whisper-1", "gpt-4o-mini-transcribe", "gpt-4o-transcribe"} // Supported models for transcription and translation
 	Formats = []string{
