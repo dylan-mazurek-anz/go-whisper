@@ -6,9 +6,10 @@ import "encoding/json"
 // TYPES
 
 type Event struct {
-	Type  string `json:"type"`
-	Delta string `json:"delta,omitempty"` // delta
-	Text  string `json:"text,omitempty"`  // done
+	Type  string          `json:"type"`
+	Delta string          `json:"delta,omitempty"` // transcript.text.delta
+	Text  string          `json:"text,omitempty"`  // transcript.text.done and transcript.text.language
+	JSON  json.RawMessage `json:"json,omitempty"`  // transcript.text.delta and transcript.text.done when format = json or verbose_json
 }
 
 //////////////////////////////////////////////////////////////////////////////
