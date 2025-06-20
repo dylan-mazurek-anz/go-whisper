@@ -74,7 +74,11 @@ func (cmd *TranslateCmd) run_local(app *Globals, translate bool) error {
 	defer f.Close()
 
 	// Create a segmenter - read segments based on requested segment size
-	segmenter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate)
+	opts := []segmenter.Opt{}
+	if cmd.Segments > 0 {
+		opts = append(opts, segmenter.WithSegmentSize(cmd.Segments))
+	}
+	segmenter, err := segmenter.NewReader(f, whisper.SampleRate, opts...)
 	if err != nil {
 		return err
 	}
@@ -177,11 +181,14 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 
 	// Create a segmenter - read segments based on requested segment size
 	sopts := []segmenter.Opt{}
+	if cmd.Segments > 0 {
+		sopts = append(sopts, segmenter.WithSegmentSize(cmd.Segments))
+	}
 	if cmd.Silence > 0 {
 		sopts = append(sopts, segmenter.WithDefaultSilenceThreshold())
-		sopts = append(sopts, segmenter.WithSilenceDuration(cmd.Silence))
+		sopts = append(sopts, segmenter.WithSilenceSize(cmd.Silence))
 	}
-	splitter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate, sopts...)
+	splitter, err := segmenter.NewReader(f, whisper.SampleRate, sopts...)
 	if err != nil {
 		return err
 	}

@@ -34,11 +34,14 @@ func (cmd *SegmentCmd) Run(app *Globals) error {
 
 	// Create a segmenter - read segments based on requested segment size
 	opts := []segmenter.Opt{}
+	if cmd.Segments > 0 {
+		opts = append(opts, segmenter.WithSegmentSize(cmd.Segments))
+	}
 	if cmd.Silence > 0 {
 		opts = append(opts, segmenter.WithDefaultSilenceThreshold())
-		opts = append(opts, segmenter.WithSilenceDuration(cmd.Silence))
+		opts = append(opts, segmenter.WithSilenceSize(cmd.Silence))
 	}
-	segmenter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate, opts...)
+	segmenter, err := segmenter.NewReader(f, whisper.SampleRate, opts...)
 	if err != nil {
 		return err
 	}
