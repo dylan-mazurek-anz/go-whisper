@@ -27,6 +27,7 @@ type TranslateCmd struct {
 	Path        string        `arg:"" help:"Path to audio file"`
 	Format      string        `flag:"" help:"Output format" default:"text" enum:"json,verbose_json,text,vtt,srt"`
 	Segments    time.Duration `flag:"" help:"Segment size for reading audio file"`
+	Silence     time.Duration `flag:"" help:"Segment silence threshold"`
 	Remote      bool          `flag:"" help:"Use remote service (gowhisper, openai, elevenlabs) for translation or transcription"`
 	Temperature *float64      `flag:"" help:"Temperature"`
 	Diarize     bool          `flag:"" help:"Diarize the transcription"`
@@ -175,16 +176,21 @@ func (cmd *TranslateCmd) run_remote(app *Globals, translate bool) error {
 	}
 
 	// Create a segmenter - read segments based on requested segment size
-	segmenter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate)
+	sopts := []segmenter.Opt{}
+	if cmd.Silence > 0 {
+		sopts = append(sopts, segmenter.WithDefaultSilenceThreshold())
+		sopts = append(sopts, segmenter.WithSilenceDuration(cmd.Silence))
+	}
+	splitter, err := segmenter.NewReader(f, cmd.Segments, whisper.SampleRate, sopts...)
 	if err != nil {
 		return err
 	}
-	defer segmenter.Close()
+	defer splitter.Close()
 
 	// Read samples and transcribe or translate them
-	return segmenter.DecodeInt16(app.ctx, func(ts time.Duration, data []int16) error {
-		// Make a WAV file from the float32 samples
-		r, err := wav.NewInt16(data, whisper.SampleRate)
+	return splitter.DecodeInt16(app.ctx, func(ts time.Duration, data []int16) error {
+		// Make a mono WAV file from the float32 samples
+		r, err := wav.NewInt16(data, whisper.SampleRate, 1)
 		if err != nil {
 			return err
 		}

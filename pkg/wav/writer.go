@@ -14,15 +14,15 @@ type WaveAudio struct {
 }
 
 // Create a new mono WAV file with 16-bit signed integer samples
-func NewInt16(data []int16, sampleRate int) (*WaveAudio, error) {
+func NewInt16(data []int16, sampleRate, channels int) (*WaveAudio, error) {
 	buf := new(writerseeker.WriterSeeker)
-	encoder := wav.NewEncoder(buf, sampleRate, 16, 1, 1)
+	encoder := wav.NewEncoder(buf, sampleRate, 16, channels, 1)
 	pcmbuf := audio.PCMBuffer{
 		I16:      data,
 		DataType: audio.DataTypeI16,
 		Format: &audio.Format{
 			SampleRate:  sampleRate,
-			NumChannels: 1,
+			NumChannels: channels,
 		},
 	}
 	if err := encoder.Write(pcmbuf.AsIntBuffer()); err != nil {
