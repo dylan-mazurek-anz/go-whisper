@@ -77,7 +77,6 @@ event: ok
 data: {"id":"ggml-medium-q5_0","object":"model","path":"ggml-medium-q5_0.bin","created":1722411778}
 ```
 
-
 ### Delete Model
 
 ```html
@@ -94,10 +93,10 @@ This endpoint's purpose is to transcribe media files into text, in the language 
 
 ```html
 POST /v1/audio/transcriptions
-POST /v1/audio/transcriptions?stream={bool}
+POST /v1/audio/transcriptions
 ```
 
-The request should be a multipart/form-data request with the following fields:
+The request should be a multipart/form-data request with the [following fields](../pkg/schema/transcription.go):
 
 ```json
 {
