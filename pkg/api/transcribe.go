@@ -173,7 +173,7 @@ func transcribe_file(ctx context.Context, service *whisper.Whisper, w http.Respo
 
 func segment(ctx context.Context, taskctx *task.Context, r io.Reader, fn func(seg *schema.Segment)) error {
 	// Create a segmenter
-	segmenter, err := segmenter.NewReader(r, 0, whisper.SampleRate)
+	segmenter, err := segmenter.NewReader(r, whisper.SampleRate)
 	if err != nil {
 		return err
 	}
